@@ -1,0 +1,80 @@
+INTELLIGENT FACULTY MANAGEMENT SYSTEM - HOW TO RUN (VS CODE TERMINAL)
+=====================================================================
+
+Open the terminal in VS Code with Ctrl+` (Cmd+` on Mac).
+It should open in the project folder (UB-HR), the one that contains manage.py.
+
+
+1. FIRST-TIME SETUP
+-------------------
+
+macOS / Linux:
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+
+Windows (PowerShell):
+
+    py -m venv .venv
+    .venv\Scripts\Activate.ps1
+    pip install -r requirements.txt
+
+If PowerShell blocks the activate script, run this once and try again:
+
+    Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+
+
+2. RUN IT
+---------
+
+    python manage.py runserver 8765
+
+Then open: http://127.0.0.1:8765/
+
+Port 8765 is used because port 8000 was already taken by another project.
+Any free port works.
+
+Pages:
+
+    /                   Employee home
+    /wellness/          Wellness
+    /admin-dashboard/   Admin dashboard
+    /dashboard/         Employee dashboard (1920x1080 sample data)
+
+Stop the server with Ctrl+C.
+
+
+3. PIP INSTALLS
+---------------
+
+"pip install -r requirements.txt" is all that is needed. It installs:
+
+    Django 6.1.2
+    asgiref   (required by Django)
+    sqlparse  (required by Django)
+
+Nothing else is used by the prototype.
+Django 6 needs a recent Python (3.12 or newer). Check with: python3 --version
+
+
+4. OPTIONAL
+-----------
+
+Run the tests (3 should pass):
+
+    python manage.py test
+
+Unapplied-migrations warning at startup:
+    A fresh clone prints "You have unapplied migration(s)". It is harmless,
+    because the pages do not use the database. To silence it:
+
+    python manage.py migrate
+
+Fonts:
+    The page fonts load from Google Fonts and need internet. Offline, the
+    pages fall back to system fonts.
+
+VS Code import warnings:
+    Press Cmd/Ctrl+Shift+P, choose "Python: Select Interpreter", and pick the
+    one inside .venv.

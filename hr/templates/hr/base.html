@@ -1,0 +1,37 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Faculty Management System{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'hr/css/app.css' %}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <header class="site-header">
+    <div class="bar">
+      <a class="brand" href="{% url 'hr:employee_home' %}">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Faculty<br>Management System</span>
+      </a>
+      <nav class="nav" aria-label="Main">
+        <a href="{% url 'hr:employee_home' %}"{% if nav == 'home' %} class="is-active"{% endif %}>Home</a>
+        <a href="#">My records</a>
+        <a href="#">Attendance</a>
+        <a href="#">Career</a>
+        <a href="#">Messages</a>
+        <a href="{% url 'hr:wellness' %}"{% if nav == 'wellness' %} class="is-active"{% endif %}>Wellness</a>
+        <a class="btn-gold" href="{% url 'hr:admin_dashboard' %}">Admin dashboard</a>
+      </nav>
+    </div>
+  </header>
+
+  {% block page %}{% endblock %}
+
+  <footer class="site-footer">
+    <div>{% block footer_text %}[School name] · Faculty Management System{% endblock %}</div>
+  </footer>
+</body>
+</html>
