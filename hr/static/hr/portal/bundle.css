@@ -411,6 +411,7 @@ textarea.ds-control { min-height: 72px; resize: vertical; }
 .ti-chart-pie:before { content: "\ea5d"; }
 .ti-check:before { content: "\ea5e"; }
 .ti-chevron-down:before { content: "\ea5f"; }
+.ti-clock:before { content: "\ea70"; }
 .ti-clipboard-check:before { content: "\ea6c"; }
 .ti-components:before { content: "\efa5"; }
 .ti-file-check:before { content: "\ea9c"; }

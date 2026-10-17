@@ -1,7 +1,22 @@
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
+from .charts import meter, sparkline
 from .pages import BY_NAME, PAGES
+
+
+class ChartHelperTests(SimpleTestCase):
+    def test_meter_clamps_to_a_percentage(self):
+        self.assertEqual(meter(9, 15)["pct"], 60)
+        self.assertEqual(meter(3, 0)["pct"], 0)
+        self.assertEqual(meter(7, 5)["pct"], 100)
+
+    def test_sparkline_puts_the_highest_value_on_top(self):
+        spark = sparkline([("a", 3.9), ("b", 4.4), ("c", 4.1)], height=44, pad=7)
+        ys = [dot["y"] for dot in spark["dots"]]
+        self.assertEqual(ys[1], 7)
+        self.assertEqual(ys[0], 37)
+        self.assertEqual(spark["dots"][-1]["x"], 160 - 7)
 
 
 class ShellTests(TestCase):
@@ -19,7 +34,14 @@ class ShellTests(TestCase):
 
     def test_dashboard_is_the_landing_page(self):
         self.assertEqual(reverse("hr:dashboard"), "/")
-        self.assertTemplateUsed(self.client.get("/"), "hr/dashboard.html")
+        resp = self.client.get("/")
+        self.assertTemplateUsed(resp, "hr/dashboard.html")
+        self.assertContains(resp, "Welcome back, Alex")
+        self.assertContains(resp, 'aria-current="step"', count=1)
+        self.assertContains(resp, "Rating by semester: AY 2024–25 S1 3.9")
+
+    def test_sidebar_shows_the_sample_user(self):
+        self.assertContains(self.client.get(BY_NAME["records"].url), '<div class="ds-user-name">Alex Rivera</div>')
 
     def test_nav_marks_only_the_current_page(self):
         resp = self.client.get(BY_NAME["wellness"].url)

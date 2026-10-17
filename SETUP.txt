@@ -61,7 +61,7 @@ Django 6 needs a recent Python (3.12 or newer). Check with: python3 --version
 4. OPTIONAL
 -----------
 
-Run the tests (8 should pass):
+Run the tests (11 should pass):
 
     python manage.py test
 

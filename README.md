@@ -15,7 +15,7 @@ python3 -m venv .venv
 
 | URL | Screen |
 |---|---|
-| `/` | Dashboard: layout sample (stat cards, toolbar, table, pagination, panels) |
+| `/` | Dashboard (employee landing page, sample data) |
 | `/ui/` | UI kit: every component, to copy markup from |
 | everything else in the sidebar | Placeholder page: "Not built yet", plus the plan's list for that screen |
 
@@ -23,6 +23,8 @@ python3 -m venv .venv
 
 - `hr/pages.py` – the one list of screens: route, sidebar section, title, icon, and what is planned. Add a screen here.
 - `hr/views.py` – a single `PageView` that renders a screen inside the shell (no queries)
+- `hr/sample_data.py` – invented, generic sample data per screen, merged into the template context
+- `hr/charts.py` – geometry for the inline sparklines and meters (no chart library needed)
 - `hr/templates/hr/` – `base.html` (shell and page header), `_sidebar.html`, `dashboard.html`, `placeholder.html`, `ui_kit.html`
 - `hr/static/hr/portal/` – the handoff's `tokens.css`, `bundle.css` and Tabler icon font. Keep these as delivered;
   new icon glyphs go in the marked block at the end of `bundle.css`.

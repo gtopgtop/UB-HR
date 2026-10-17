@@ -31,10 +31,10 @@
   <div class="ds-sidebar-foot">
     <a class="ds-nav-link" href="{% url 'hr:account' %}"{% if page.name == 'account' %} aria-current="page"{% endif %}><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i><span>My settings</span></a>
     <div class="ds-user-card">
-      <div class="ds-avatar" aria-hidden="true">SU</div>
+      <div class="ds-avatar" aria-hidden="true">{{ current_user.initials }}</div>
       <div class="fms-grow fms-rail-hide">
-        <div class="ds-user-name">Sample user</div>
-        <div class="ds-user-role">All roles (prototype)</div>
+        <div class="ds-user-name">{{ current_user.name }}</div>
+        <div class="ds-user-role">{{ current_user.role }}</div>
       </div>
     </div>
   </div>

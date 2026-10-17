@@ -1,5 +1,6 @@
 from django.views.generic import TemplateView
 
+from . import sample_data
 from .pages import SECTIONS, crumbs
 
 
@@ -19,4 +20,6 @@ class PageView(TemplateView):
             {"section": s, "open": not s.collapsible or self.page in s.pages}
             for s in SECTIONS
         ]
+        context["current_user"] = sample_data.CURRENT_USER
+        context.update(sample_data.for_page(self.page.name))
         return context

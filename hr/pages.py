@@ -52,7 +52,7 @@ EMPLOYEE, DEPT_HEAD, HR_OFFICER = "Employee", "Department Head", "HR Officer"
 SECTIONS = (
     Section("My work", (
         Page("dashboard", "", "Dashboard", "layout-dashboard",
-             subtitle="Layout sample with placeholder figures", role=EMPLOYEE, tier="Tier 1", iteration=2,
+             subtitle="Your day at a glance", role=EMPLOYEE, tier="Tier 1", iteration=2,
              template="dashboard"),
         Page("records", "records/", "My records", "id-badge-2",
              subtitle="Profile, employment history, pay and 201 file", role=EMPLOYEE, tier="Tier 1", iteration=2,
