@@ -58,11 +58,12 @@
     });
   });
 
-  // Tabs: ARIA tabs pattern with a roving tabindex.
+  // Tabs: ARIA tabs pattern with a roving tabindex. A tab with data-hash is linkable
+  // (records/#pay opens the Pay tab) and writes its hash to the address bar.
   document.querySelectorAll('[role="tablist"]').forEach((list) => {
     const tabs = [...list.querySelectorAll('[role="tab"]')];
     const panelOf = (tab) => document.getElementById(tab.getAttribute("aria-controls"));
-    function select(tab) {
+    function select(tab, { focus = true } = {}) {
       const from = tabs.findIndex((t) => t.getAttribute("aria-selected") === "true");
       const to = tabs.indexOf(tab);
       tabs.forEach((t) => {
@@ -73,14 +74,17 @@
       const panel = panelOf(tab);
       panel.hidden = false;
       panel.setAttribute("aria-labelledby", tab.id);
-      if (to !== from) {
+      if (focus && to !== from) {
         panel.style.setProperty("--fms-dir", to > from ? 1 : -1);
         panel.classList.remove("is-entering");
         void panel.offsetWidth; // restart the animation
         panel.classList.add("is-entering");
       }
-      tab.focus();
+      if (tab.dataset.hash && focus) history.replaceState(null, "", `#${tab.dataset.hash}`);
+      if (focus) tab.focus();
     }
+    const linked = tabs.find((t) => t.dataset.hash && `#${t.dataset.hash}` === location.hash);
+    if (linked) select(linked, { focus: false });
     list.addEventListener("click", (e) => {
       const tab = e.target.closest('[role="tab"]');
       if (tab) select(tab);
@@ -100,6 +104,18 @@
       const option = e.target.closest(".ds-seg");
       if (!option) return;
       group.querySelectorAll(".ds-seg").forEach((s) => s.setAttribute("aria-pressed", String(s === option)));
+    });
+  });
+
+  // Masked values (government IDs): Show swaps in the full value; aria-pressed carries the state.
+  document.querySelectorAll("[data-reveal]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const value = document.getElementById(btn.getAttribute("aria-controls"));
+      const show = btn.getAttribute("aria-pressed") !== "true";
+      btn.setAttribute("aria-pressed", String(show));
+      value.textContent = show ? value.dataset.full : value.dataset.masked;
+      btn.querySelector(".ti").className = `ti ti-${show ? "eye-off" : "eye"}`;
+      btn.querySelector("span").textContent = show ? "Hide" : "Show";
     });
   });
 

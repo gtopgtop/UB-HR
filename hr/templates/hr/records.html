@@ -1,0 +1,266 @@
+{% extends "hr/base.html" %}
+{# My records (plan §3 Module 1, §8.2). The employee views; HR edits. Data: hr/sample_data.py RECORDS. #}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="correction-dialog"><i class="ti ti-edit" aria-hidden="true"></i>Request a correction</button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="ds-card fms-profile">
+  <div class="ds-avatar fms-avatar-lg" aria-hidden="true">{{ summary.initials }}</div>
+  <div class="fms-grow">
+    <div class="fms-profile-name">{{ summary.name }}</div>
+    <div class="fms-muted">{{ summary.rank }} · {{ summary.department }}</div>
+  </div>
+  <div class="fms-row">
+    <span class="ds-badge v-brand">{{ summary.employee_no }}</span>
+    <span class="ds-badge v-success"><span class="ds-dot d-success"></span>{{ summary.status }}</span>
+    <span class="ds-badge">Since {{ summary.since }}</span>
+  </div>
+</div>
+
+<div>
+  <div class="ds-tabs" role="tablist" aria-label="Record sections">
+    <button class="ds-tab" type="button" role="tab" id="tab-profile" aria-controls="panel-profile" aria-selected="true" data-hash="profile"><i class="ti ti-user" aria-hidden="true"></i>Profile</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-employment" aria-controls="panel-employment" aria-selected="false" tabindex="-1" data-hash="employment"><i class="ti ti-briefcase" aria-hidden="true"></i>Employment</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-pay" aria-controls="panel-pay" aria-selected="false" tabindex="-1" data-hash="pay"><i class="ti ti-receipt" aria-hidden="true"></i>Pay <span class="ds-tab-count">{{ payslips|length }}</span></button>
+    <button class="ds-tab" type="button" role="tab" id="tab-contributions" aria-controls="panel-contributions" aria-selected="false" tabindex="-1" data-hash="contributions"><i class="ti ti-building" aria-hidden="true"></i>Contributions</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-benefits" aria-controls="panel-benefits" aria-selected="false" tabindex="-1" data-hash="benefits"><i class="ti ti-gift" aria-hidden="true"></i>Benefits <span class="ds-tab-count">{{ benefits|length }}</span></button>
+    <button class="ds-tab" type="button" role="tab" id="tab-documents" aria-controls="panel-documents" aria-selected="false" tabindex="-1" data-hash="201-file"><i class="ti ti-file-text" aria-hidden="true"></i>201 file <span class="ds-tab-count">{{ documents|length }}</span></button>
+  </div>
+
+  {# ── Profile ── #}
+  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-profile" aria-labelledby="tab-profile" tabindex="0">
+    <div class="ds-alert v-info" role="status"><i class="ti ti-info-circle" aria-hidden="true"></i><div class="ds-alert-body">HR keeps these details up to date. If something is wrong, request a correction and HR will review it.</div></div>
+
+    <div class="fms-grid is-halves">
+      <section class="ds-card ds-panel" aria-labelledby="personal-title">
+        <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="personal-title">Personal details</h2><p class="ds-panel-sub">Contact and civil status</p></div></div>
+        <div class="ds-panel-body">
+          <dl class="fms-dl">{% for label, value in personal %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+        </div>
+      </section>
+
+      <div class="fms-col">
+        <section class="ds-card ds-panel" aria-labelledby="emergency-title">
+          <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="emergency-title">Emergency contact</h2><p class="ds-panel-sub">Who HR calls first</p></div></div>
+          <div class="ds-panel-body">
+            <dl class="fms-dl">{% for label, value in emergency %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+          </div>
+        </section>
+
+        <section class="ds-card ds-panel" aria-labelledby="ids-title">
+          <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="ids-title">Government IDs</h2><p class="ds-panel-sub">Visible to you and HR officers only</p></div><i class="ti ti-shield-check fms-panel-icon" aria-hidden="true"></i></div>
+          <div class="ds-panel-body">
+            <dl class="fms-dl">
+              {% for gov in government_ids %}
+              <div>
+                <dt>{{ gov.label }}</dt>
+                <dd class="fms-reveal">
+                  <span id="{{ gov.id }}" class="fms-mono" data-full="{{ gov.full }}" data-masked="{{ gov.masked }}">{{ gov.masked }}</span>
+                  <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" aria-controls="{{ gov.id }}" aria-pressed="false" aria-label="Show {{ gov.label }} number" data-reveal><i class="ti ti-eye" aria-hidden="true"></i><span aria-hidden="true">Show</span></button>
+                </dd>
+              </div>
+              {% endfor %}
+            </dl>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <section class="ds-card ds-panel p-none" aria-labelledby="corrections-title">
+      <div class="ds-panel-head">
+        <div><h2 class="ds-panel-title" id="corrections-title">Correction requests</h2><p class="ds-panel-sub">Approved changes keep the old and new values</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-dialog-open="correction-dialog"><i class="ti ti-plus" aria-hidden="true"></i>New request</button>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Field</th><th scope="col">Change</th><th scope="col">Filed</th><th scope="col">Status</th></tr></thead>
+          <tbody>
+            {% for req in corrections %}
+            <tr>
+              <td class="ds-cell-strong">{{ req.field }}</td>
+              <td><span class="fms-old">{{ req.old }}</span> <i class="ti ti-chevron-right fms-arrow" aria-hidden="true"></i><span class="ds-sr-only">changed to</span> {{ req.new }}</td>
+              <td>{{ req.filed }}</td>
+              <td><span class="ds-status v-{{ req.tone }}"><span class="ds-dot d-{{ req.tone }}"></span>{{ req.status }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  {# ── Employment ── #}
+  <div class="fms-tab-panel" role="tabpanel" id="panel-employment" aria-labelledby="tab-employment" tabindex="0" hidden>
+    <section class="ds-card ds-panel" aria-labelledby="history-title">
+      <div class="ds-panel-head">
+        <div><h2 class="ds-panel-title" id="history-title">Employment history</h2><p class="ds-panel-sub">Position, department, salary grade and step</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-printer" aria-hidden="true"></i>Service record</button>
+      </div>
+      <div class="ds-panel-body">
+        <ol class="fms-timeline">
+          {% for item in history %}
+          <li{% if item.current %} class="is-current"{% endif %}>
+            <div class="fms-timeline-head">
+              <span class="fms-schedule-title">{{ item.position }}</span>
+              {% if item.current %}<span class="ds-badge v-brand s-sm">Current</span>{% endif %}
+            </div>
+            <div class="fms-muted">{{ item.department }} · {{ item.grade }}</div>
+            <div class="fms-caption">{{ item.dates }} · {{ item.note }}</div>
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
+    </section>
+  </div>
+
+  {# ── Pay ── #}
+  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-pay" aria-labelledby="tab-pay" tabindex="0" hidden>
+    <section class="ds-card ds-panel" aria-labelledby="payslip-title">
+      <div class="ds-panel-head">
+        <div><h2 class="ds-panel-title" id="payslip-title">Latest payslip</h2><p class="ds-panel-sub">{{ latest_payslip.period }} · Released {{ latest_payslip.released }}</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-download" aria-hidden="true"></i>Download PDF</button>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-grid is-halves">
+          <div>
+            <h3 class="ds-eyebrow fms-ledger-title">Earnings</h3>
+            <dl class="fms-ledger">
+              {% for item in latest_payslip.earnings %}<div><dt>{{ item.label }}</dt><dd>{{ item.amount }}</dd></div>{% endfor %}
+              <div class="is-total"><dt>Gross pay</dt><dd>{{ latest_payslip.gross }}</dd></div>
+            </dl>
+          </div>
+          <div>
+            <h3 class="ds-eyebrow fms-ledger-title">Deductions and contributions</h3>
+            <dl class="fms-ledger">
+              {% for item in latest_payslip.deductions %}<div><dt>{{ item.label }}</dt><dd>{{ item.amount }}</dd></div>{% endfor %}
+              <div class="is-total"><dt>Total deductions</dt><dd>{{ latest_payslip.withheld }}</dd></div>
+            </dl>
+          </div>
+        </div>
+        <div class="fms-net"><span>Net pay</span><strong>{{ latest_payslip.net }}</strong></div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel p-none" aria-labelledby="payslips-title">
+      <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="payslips-title">All payslips</h2><p class="ds-panel-sub">View only · amounts in pesos</p></div></div>
+      <div class="ds-table-wrap">
+        <table class="ds-table fms-num">
+          <thead><tr><th scope="col">Period</th><th scope="col">Released</th><th scope="col" class="a-right">Gross</th><th scope="col" class="a-right">Deductions</th><th scope="col" class="a-right">Net</th><th scope="col" class="a-right"><span class="ds-sr-only">Download</span></th></tr></thead>
+          <tbody>
+            {% for slip in payslips %}
+            <tr>
+              <td class="ds-cell-strong">{{ slip.period }}</td><td>{{ slip.released }}</td>
+              <td class="a-right">{{ slip.gross }}</td><td class="a-right">{{ slip.withheld }}</td><td class="a-right ds-cell-strong">{{ slip.net }}</td>
+              <td class="a-right"><button type="button" class="ds-row-action" aria-label="Download payslip for {{ slip.period }}"><i class="ti ti-download" aria-hidden="true"></i></button></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  {# ── Contributions ── #}
+  <div class="fms-tab-panel" role="tabpanel" id="panel-contributions" aria-labelledby="tab-contributions" tabindex="0" hidden>
+    <section class="ds-card ds-panel p-none" aria-labelledby="contrib-title">
+      <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="contrib-title">Contributions and tax, 2026</h2><p class="ds-panel-sub">Your monthly share · amounts in pesos</p></div></div>
+      <div class="ds-table-wrap">
+        <table class="ds-table fms-num">
+          <thead><tr><th scope="col">Month</th>{% for col in contributions.columns %}<th scope="col" class="a-right">{{ col }}</th>{% endfor %}<th scope="col" class="a-right">Total</th></tr></thead>
+          <tbody>
+            {% for row in contributions.rows %}
+            <tr><th scope="row">{{ row.month }}</th>{% for amount in row.amounts %}<td class="a-right">{{ amount }}</td>{% endfor %}<td class="a-right ds-cell-strong">{{ row.total }}</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr><th scope="row">Total, 2026 to date</th>{% for total in contributions.totals %}<td class="a-right">{{ total }}</td>{% endfor %}<td class="a-right">{{ contributions.grand_total }}</td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  {# ── Benefits ── #}
+  <div class="fms-tab-panel" role="tabpanel" id="panel-benefits" aria-labelledby="tab-benefits" tabindex="0" hidden>
+    <div class="fms-grid is-halves">
+      {% for benefit in benefits %}
+      <div class="ds-card ds-stat">
+        <div class="ds-stat-icon" aria-hidden="true"><i class="ti ti-{{ benefit.icon }}"></i></div>
+        <div class="fms-grow">
+          <div class="fms-schedule-title">{{ benefit.name }}</div>
+          <div class="fms-muted">{{ benefit.detail }}</div>
+          <div class="fms-caption">{{ benefit.coverage }}</div>
+        </div>
+        <span class="ds-badge v-success s-sm"><span class="ds-dot d-success"></span>Enrolled</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── 201 file ── #}
+  <div class="fms-tab-panel" role="tabpanel" id="panel-documents" aria-labelledby="tab-documents" tabindex="0" hidden>
+    <section class="ds-card ds-panel p-none" aria-labelledby="docs-title">
+      <div class="ds-panel-head">
+        <div><h2 class="ds-panel-title" id="docs-title">201 file</h2><p class="ds-panel-sub">Scanned appointment papers, diplomas and certificates</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-upload" aria-hidden="true"></i>Upload document</button>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Document</th><th scope="col">Category</th><th scope="col">Uploaded</th><th scope="col" class="a-right"><span class="ds-sr-only">Download</span></th></tr></thead>
+          <tbody>
+            {% for doc in documents %}
+            <tr>
+              <td><div class="ds-cell-person"><div class="ds-stat-icon" aria-hidden="true"><i class="ti ti-file-text"></i></div><div><div class="ds-cell-strong">{{ doc.name }}</div><div class="ds-cell-sub">{{ doc.size }}</div></div></div></td>
+              <td><span class="ds-badge s-sm">{{ doc.category }}</span></td>
+              <td>{{ doc.uploaded }}</td>
+              <td class="a-right"><button type="button" class="ds-row-action" aria-label="Download {{ doc.name }}"><i class="ti ti-download" aria-hidden="true"></i></button></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal m-md" id="correction-dialog" aria-labelledby="correction-title" aria-describedby="correction-desc">
+  <form method="dialog" novalidate class="fms-dialog-form">
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-edit"></i></div>
+        <h2 class="ds-modal-title" id="correction-title">Request a correction</h2>
+        <p class="ds-modal-desc" id="correction-desc">HR reviews the change. Once approved, your record keeps both the old and the new value.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="correction-field">Field to correct</label>
+        <select class="ds-control" id="correction-field">{% for field in correction_fields %}<option>{{ field }}</option>{% endfor %}</select>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="correction-current">Current value</label>
+        <input class="ds-control" id="correction-current" value="{{ personal.3.1 }}" readonly>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="correction-new">Correct value <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <input class="ds-control" id="correction-new" aria-required="true">
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="correction-note">Reason or proof</label>
+        <textarea class="ds-control" id="correction-note" aria-describedby="correction-note-hint"></textarea>
+        <p class="ds-hint" id="correction-note-hint">You can attach a supporting document from the 201 file tab.</p>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Send to HR</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

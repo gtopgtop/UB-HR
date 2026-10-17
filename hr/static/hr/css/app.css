@@ -108,6 +108,52 @@ button.ds-nav-label:focus-visible { outline: none; box-shadow: 0 0 0 3px rgb(224
 .fms-mood input:checked + span { border-color: var(--color-action); background: var(--color-action); color: #fff; }
 .fms-mood input:focus-visible + span { box-shadow: 0 0 0 3px rgb(224 49 49 / 0.25); }
 
+/* ── My records ───────────────────────────────────────────────────────── */
+.fms-profile { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+.fms-avatar-lg { width: 48px; height: 48px; font-size: var(--text-sm); }
+.fms-profile-name { font-size: var(--text-md); line-height: 1.4; font-weight: 700; color: var(--color-neutral-900); }
+.fms-panel-icon { flex-shrink: 0; font-size: 18px; color: var(--color-success-500); }
+
+/* Label and value pairs. */
+.fms-dl { display: grid; margin: 0; }
+.fms-dl > div { display: grid; grid-template-columns: minmax(96px, 2fr) minmax(0, 3fr); gap: var(--space-3); align-items: center; padding: 10px 0; border-bottom: 1px solid var(--color-neutral-200); }
+.fms-dl > div:first-child { padding-top: 0; }
+.fms-dl > div:last-child { padding-bottom: 0; border-bottom: 0; }
+.fms-dl dt { font-size: var(--text-sm); color: var(--color-neutral-500); }
+.fms-dl dd { margin: 0; font-size: var(--text-base); color: var(--color-neutral-900); overflow-wrap: anywhere; }
+.fms-reveal { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.fms-mono { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+
+.fms-old { color: var(--color-neutral-500); text-decoration: line-through; }
+.fms-arrow { margin: 0 2px; font-size: 13px; color: var(--color-neutral-400); vertical-align: -1px; }
+
+/* Row headers and a totals footer inside a ds-table: plain cells, not the uppercase column header. */
+.ds-table tbody th, .ds-table tfoot th { position: static; padding: 14px var(--space-4); border-bottom: 0; background: none; font-size: var(--text-sm); line-height: 1.5; font-weight: 600; letter-spacing: normal; text-transform: none; color: var(--color-neutral-900); }
+.ds-table tfoot th, .ds-table tfoot td { padding: 14px var(--space-4); border-top: 1px solid var(--color-neutral-200); background: var(--color-neutral-50); font-weight: 700; color: var(--color-neutral-900); }
+.fms-num td { font-variant-numeric: tabular-nums; }
+
+/* Vertical timeline, newest first. */
+.fms-timeline { margin: 0; padding: 0; list-style: none; }
+.fms-timeline li { position: relative; padding: 0 0 var(--space-5) 28px; }
+.fms-timeline li:last-child { padding-bottom: 0; }
+.fms-timeline li::before { content: ""; position: absolute; top: 5px; left: 0; width: 12px; height: 12px; border: 2px solid var(--color-neutral-300); border-radius: var(--radius-full); background: var(--color-surface); }
+.fms-timeline li.is-current::before { border-color: var(--color-brand-500); background: var(--color-brand-500); box-shadow: 0 0 0 3px var(--color-brand-100); }
+.fms-timeline li:not(:last-child)::after { content: ""; position: absolute; top: 21px; bottom: 4px; left: 5px; width: 2px; border-radius: var(--radius-full); background: var(--color-neutral-200); }
+.fms-timeline-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+/* Payslip ledger. */
+.fms-ledger-title { margin: 0 0 var(--space-2); }
+.fms-ledger { margin: 0; font-size: var(--text-sm); }
+.fms-ledger > div { display: flex; justify-content: space-between; gap: var(--space-3); padding: 8px 0; border-bottom: 1px solid var(--color-neutral-200); }
+.fms-ledger dt { color: var(--color-neutral-700); }
+.fms-ledger dd { margin: 0; font-variant-numeric: tabular-nums; color: var(--color-neutral-900); }
+.fms-ledger > .is-total { border-bottom: 0; font-weight: 700; }
+.fms-ledger > .is-total dt { color: var(--color-neutral-900); }
+.fms-net { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-5); padding: 14px var(--space-4); border-radius: var(--radius-lg); background: var(--color-brand-50); font-size: var(--text-sm); font-weight: 600; color: var(--color-neutral-700); }
+.fms-net strong { font-size: var(--text-xl); font-variant-numeric: tabular-nums; color: var(--color-neutral-900); }
+
+.fms-dialog-form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+
 .fms-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); column-gap: var(--space-4); }
 .fms-span-all { grid-column: 1 / -1; }
 

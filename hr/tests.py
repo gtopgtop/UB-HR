@@ -40,6 +40,18 @@ class ShellTests(TestCase):
         self.assertContains(resp, 'aria-current="step"', count=1)
         self.assertContains(resp, "Rating by semester: AY 2024–25 S1 3.9")
 
+    def test_records_totals_add_up(self):
+        resp = self.client.get(BY_NAME["records"].url)
+        self.assertTemplateUsed(resp, "hr/records.html")
+        self.assertContains(resp, "₱25,700.00")  # gross on the latest payslip
+        self.assertContains(resp, "₱23,150.10")  # net: gross minus ₱2,549.90 deductions
+        self.assertContains(resp, "₱49,749.00")  # contributions and tax, 2026 to date
+
+    def test_government_ids_render_masked(self):
+        resp = self.client.get(BY_NAME["records"].url)
+        self.assertContains(resp, ">••-•••••••-1</span>")
+        self.assertNotContains(resp, ">34-0000000-1<")
+
     def test_sidebar_shows_the_sample_user(self):
         self.assertContains(self.client.get(BY_NAME["records"].url), '<div class="ds-user-name">Alex Rivera</div>')
 
