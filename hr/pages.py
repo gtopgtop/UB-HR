@@ -52,14 +52,14 @@ EMPLOYEE, DEPT_HEAD, HR_OFFICER = "Employee", "Department Head", "HR Officer"
 SECTIONS = (
     Section("My work", (
         Page("dashboard", "", "Dashboard", "layout-dashboard",
-             subtitle="Your day at a glance", role=EMPLOYEE, tier="Tier 1", iteration=2,
-             template="dashboard"),
+             subtitle="School-wide attendance, leave, evaluations and alerts", role=HR_OFFICER, tier="Tier 1",
+             iteration=2, template="dashboard"),
         Page("records", "records/", "My records", "id-badge-2",
              subtitle="Profile, employment history, pay and 201 file", role=EMPLOYEE, tier="Tier 1", iteration=2,
              template="records"),
         Page("attendance", "attendance/", "Attendance", "calendar-time",
              subtitle="Time in, daily time record and leave", role=EMPLOYEE, tier="Tier 1", iteration=2,
-             planned=("Time in (web and QR)", "DTR calendar", "Schedule", "File leave", "Leave history")),
+             template="attendance"),
         Page("wellness", "wellness/", "Wellness", "heart",
              subtitle="Daily check-in, trends and support", role=EMPLOYEE, tier="Tier 1", iteration=2,
              planned=("Daily check-in and trends", "Insights", "Consent sharing", "Concern follow-up")),

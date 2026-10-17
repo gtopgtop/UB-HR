@@ -1,10 +1,10 @@
 {% extends "hr/base.html" %}
-{# Employee landing page (plan §9.2, Tier 1). Data comes from hr/sample_data.py: DASHBOARD. #}
+{# HR officer landing page (plan §9.2, Tier 1). Data comes from hr/sample_data.py: DASHBOARD. #}
 
 {% block actions %}
 <div class="ds-actions">
-  <a class="ds-btn ds-btn-secondary" href="{% url 'hr:attendance' %}"><i class="ti ti-calendar-time" aria-hidden="true"></i>File leave</a>
-  <button type="button" class="ds-btn ds-btn-primary"><i class="ti ti-clock" aria-hidden="true"></i>Time out</button>
+  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-download" aria-hidden="true"></i>Export report</button>
+  <a class="ds-btn ds-btn-primary" href="{% url 'hr:communications' %}"><i class="ti ti-speakerphone" aria-hidden="true"></i>New announcement</a>
 </div>
 {% endblock %}
 
@@ -28,31 +28,61 @@
     <section class="ds-card ds-panel" aria-labelledby="today-title">
       <div class="ds-panel-head">
         <div class="fms-min0">
-          <h2 class="ds-panel-title" id="today-title">Today</h2>
-          <p class="ds-panel-sub">Timed in at {{ today.time_in }}</p>
+          <h2 class="ds-panel-title" id="today-title">Attendance today</h2>
+          <p class="ds-panel-sub">As of {{ attendance_today.as_of }} · {{ attendance_today.not_in }} not timed in yet</p>
         </div>
-        <span class="ds-badge v-success"><span class="ds-dot d-success"></span>{{ today.status }}</span>
+        <span class="ds-badge v-success"><span class="ds-dot d-success"></span>{{ attendance_today.pct }}% present</span>
       </div>
       <div class="ds-panel-body">
-        <ul class="fms-schedule">
-          {% for item in today.schedule %}
-          <li><span class="fms-schedule-time">{{ item.time }}</span><span class="fms-min0"><span class="fms-schedule-title">{{ item.title }}</span><span class="fms-caption">{{ item.place }}</span></span></li>
+        <div class="fms-meters">
+          {% for dept in attendance_today.departments %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ dept.name }}</span><span class="fms-meter-value"><strong>{{ dept.present }}</strong> of {{ dept.expected }} present</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ dept.pct }}%"></i></div>
+            <div class="fms-caption">{{ dept.late }} late · {{ dept.on_leave }} on leave</div>
+          </div>
           {% endfor %}
-        </ul>
+        </div>
       </div>
     </section>
 
-    <section class="ds-card ds-panel" aria-labelledby="career-title">
+    <section class="ds-card ds-panel p-none" aria-labelledby="queue-title">
       <div class="ds-panel-head">
         <div class="fms-min0">
-          <h2 class="ds-panel-title" id="career-title">Career progress</h2>
-          <p class="ds-panel-sub">{{ career.current }} → {{ career.next }}</p>
+          <h2 class="ds-panel-title" id="queue-title">Leave to process</h2>
+          <p class="ds-panel-sub">Step 2 · approved by the department head · oldest first</p>
         </div>
-        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:career' %}">View requirements</a>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:leave_processing' %}">View all {{ leave_queue_total }}</a>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Employee</th><th scope="col">Leave</th><th scope="col">Dates</th><th scope="col">Waiting</th><th scope="col" class="a-right"><span class="ds-sr-only">Action</span></th></tr></thead>
+          <tbody>
+            {% for req in leave_queue %}
+            <tr>
+              <td><div class="ds-cell-strong">{{ req.name }}</div><div class="fms-caption">{{ req.department }}</div></td>
+              <td>{{ req.type }}</td>
+              <td>{{ req.dates }} · {{ req.days }} day{{ req.days|pluralize }}</td>
+              <td>{% if req.overdue %}<span class="ds-status v-warning"><span class="ds-dot d-warning"></span>{{ req.waiting }}</span>{% else %}<span class="ds-status"><span class="ds-dot"></span>{{ req.waiting }}</span>{% endif %}</td>
+              <td class="a-right"><a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:leave_processing' %}" aria-label="Review leave for {{ req.name }}">Review</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="cycle-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="cycle-title">Evaluation cycle</h2>
+          <p class="ds-panel-sub">{{ cycle.name }}</p>
+        </div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:computation_requests' %}">Requests</a>
       </div>
       <div class="ds-panel-body ds-stack">
-        <ol class="fms-steps" aria-label="Rank ladder">
-          {% for step in career.steps %}
+        <ol class="fms-steps" aria-label="Evaluation cycle stages">
+          {% for step in cycle.steps %}
           <li class="fms-step is-{{ step.state }}"{% if step.state == 'current' %} aria-current="step"{% endif %}>
             <span class="fms-step-dot" aria-hidden="true">{% if step.state == 'done' %}<i class="ti ti-check"></i>{% endif %}</span>
             <span class="fms-step-title">{{ step.title }}</span>
@@ -62,13 +92,13 @@
         </ol>
 
         <div class="fms-meter">
-          <div class="fms-meter-head"><span>Requirements for {{ career.next }}</span><span class="fms-meter-value"><strong>{{ career.progress.value }}</strong> of {{ career.progress.total }} met</span></div>
-          <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ career.progress.pct }}%"></i></div>
+          <div class="fms-meter-head"><span>Employees with evaluators assigned</span><span class="fms-meter-value"><strong>{{ cycle.progress.value }}</strong> of {{ cycle.progress.total }}</span></div>
+          <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ cycle.progress.pct }}%"></i></div>
         </div>
 
         <ul class="fms-list">
-          {% for req in career.requirements %}
-          <li><span>{{ req.label }}</span>{% if req.done %}<span class="ds-badge v-success s-sm"><i class="ti ti-check" aria-hidden="true"></i>{{ req.note }}</span>{% else %}<span class="ds-badge v-warning s-sm">{{ req.note }}</span>{% endif %}</li>
+          {% for dept in cycle.departments %}
+          <li><span>{{ dept.label }}</span>{% if dept.done %}<span class="ds-badge v-success s-sm"><i class="ti ti-check" aria-hidden="true"></i>{{ dept.note }}</span>{% else %}<span class="ds-badge v-warning s-sm">{{ dept.note }}</span>{% endif %}</li>
           {% endfor %}
         </ul>
       </div>
@@ -78,10 +108,10 @@
       <section class="ds-card ds-panel" aria-labelledby="rating-title">
         <div class="ds-panel-head">
           <div class="fms-min0">
-            <h2 class="ds-panel-title" id="rating-title">Performance rating</h2>
-            <p class="ds-panel-sub">Latest semester</p>
+            <h2 class="ds-panel-title" id="rating-title">School performance</h2>
+            <p class="ds-panel-sub">Average rating, latest semester</p>
           </div>
-          <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:breakdown' %}">Breakdown</a>
+          <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:hr_dashboard' %}">Trends</a>
         </div>
         <div class="ds-panel-body ds-stack">
           <div class="fms-figure">
@@ -90,7 +120,7 @@
               <span class="ds-badge v-success s-sm"><i class="ti ti-trending-up" aria-hidden="true"></i>{{ rating.delta }} {{ rating.delta_period }}</span>
             </div>
             <figure class="fms-spark">
-              <svg viewBox="0 0 {{ rating.trend.width }} {{ rating.trend.height }}" width="{{ rating.trend.width }}" height="{{ rating.trend.height }}" role="img" aria-label="Rating by semester: {{ rating.trend.summary }}">
+              <svg viewBox="0 0 {{ rating.trend.width }} {{ rating.trend.height }}" width="{{ rating.trend.width }}" height="{{ rating.trend.height }}" role="img" aria-label="School average by semester: {{ rating.trend.summary }}">
                 <polyline points="{{ rating.trend.points }}"/>
                 {% for dot in rating.trend.dots %}<circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="4"{% if forloop.last %} class="is-current"{% endif %}><title>{{ dot.label }}: {{ dot.value }}</title></circle>{% endfor %}
               </svg>
@@ -108,24 +138,20 @@
         </div>
       </section>
 
-      <section class="ds-card ds-panel" aria-labelledby="goals-title">
+      <section class="ds-card ds-panel" aria-labelledby="requests-title">
         <div class="ds-panel-head">
           <div class="fms-min0">
-            <h2 class="ds-panel-title" id="goals-title">Goals this semester</h2>
-            <p class="ds-panel-sub">{{ goals|length }} goals</p>
+            <h2 class="ds-panel-title" id="requests-title">Computation requests</h2>
+            <p class="ds-panel-sub">{{ computation_requests|length }} waiting for release</p>
           </div>
-          <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:career' %}"><i class="ti ti-plus" aria-hidden="true"></i>Add goal</a>
+          <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:computation_requests' %}">Queue</a>
         </div>
         <div class="ds-panel-body">
-          <div class="fms-meters">
-            {% for goal in goals %}
-            <div class="fms-meter">
-              <div class="fms-meter-head"><span>{{ goal.title }}</span><span class="fms-meter-value">{{ goal.note }}</span></div>
-              <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ goal.pct }}%"></i></div>
-              <div class="fms-caption">{{ goal.due }}</div>
-            </div>
+          <ul class="fms-list">
+            {% for req in computation_requests %}
+            <li><span class="fms-min0"><span class="fms-schedule-title">{{ req.name }}</span><span class="fms-caption">{{ req.kind }} · {{ req.department }} · filed {{ req.filed }}</span></span>{% if req.overdue %}<span class="ds-badge v-error s-sm">{{ req.open }}</span>{% else %}<span class="ds-badge s-sm">{{ req.open }}</span>{% endif %}</li>
             {% endfor %}
-          </div>
+          </ul>
         </div>
       </section>
     </div>
@@ -133,94 +159,78 @@
 
   <div class="fms-col is-side">
 
-    <section class="ds-card ds-panel" aria-labelledby="mood-title">
+    <section class="ds-card ds-panel" aria-labelledby="alerts-title">
       <div class="ds-panel-head">
         <div class="fms-min0">
-          <h2 class="ds-panel-title" id="mood-title">How are you today?</h2>
-          <p class="ds-panel-sub">Only you can see your check-ins</p>
+          <h2 class="ds-panel-title" id="alerts-title">Alerts</h2>
+          <p class="ds-panel-sub">Burnout, retention, stagnation and policy</p>
         </div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:alerts' %}">View all</a>
       </div>
-      <form class="ds-panel-body ds-stack" onsubmit="return false">
-        <fieldset class="fms-mood">
-          <legend class="ds-sr-only">How are you feeling today?</legend>
-          {% for mood in moods %}
-          <label><input type="radio" name="mood" value="{{ forloop.counter }}"><span>{{ mood }}</span></label>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for alert in alerts %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ alert.title }}</span><span class="fms-caption">{{ alert.reason }}</span></span><span class="ds-badge v-{{ alert.tone }} s-sm">{{ alert.level }}</span></li>
           {% endfor %}
-        </fieldset>
-        <div class="fms-row fms-between">
-          <a class="fms-link" href="{% url 'hr:wellness' %}">See my trends</a>
-          <button type="submit" class="ds-btn ds-btn-primary ds-btn-sm">Submit check-in</button>
-        </div>
-      </form>
+        </ul>
+      </div>
     </section>
 
     <section class="ds-card ds-panel" aria-labelledby="leave-title">
       <div class="ds-panel-head">
         <div class="fms-min0">
-          <h2 class="ds-panel-title" id="leave-title">Leave balances</h2>
-          <p class="ds-panel-sub">School year 2026–2027</p>
+          <h2 class="ds-panel-title" id="leave-title">On leave today</h2>
+          <p class="ds-panel-sub">{{ attendance_today.school.on_leave }} employees, by leave type</p>
         </div>
-        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:attendance' %}">History</a>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:directory' %}">See who</a>
       </div>
       <div class="ds-panel-body">
         <div class="fms-meters">
-          {% for balance in leave %}
+          {% for leave in on_leave %}
           <div class="fms-meter">
-            <div class="fms-meter-head"><span>{{ balance.type }}</span><span class="fms-meter-value"><strong>{{ balance.value }}</strong> of {{ balance.total }} days left</span></div>
-            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ balance.pct }}%"></i></div>
+            <div class="fms-meter-head"><span>{{ leave.type }}</span><span class="fms-meter-value"><strong>{{ leave.value }}</strong> of {{ leave.total }}</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ leave.pct }}%"></i></div>
           </div>
           {% endfor %}
         </div>
       </div>
     </section>
 
-    <section class="ds-card ds-panel" aria-labelledby="attendance-title">
-      <div class="ds-panel-head">
-        <div class="fms-min0">
-          <h2 class="ds-panel-title" id="attendance-title">Recent attendance</h2>
-          <p class="ds-panel-sub">Last {{ attendance|length }} working days</p>
-        </div>
-        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:attendance' %}">DTR</a>
-      </div>
-      <div class="ds-panel-body">
-        <ul class="fms-list">
-          {% for day in attendance %}
-          <li><span class="fms-min0"><span class="fms-schedule-title">{{ day.date }}</span><span class="fms-caption">{{ day.hours }}</span></span><span class="ds-status v-{{ day.tone }}"><span class="ds-dot d-{{ day.tone }}"></span>{{ day.status }}</span></li>
-          {% endfor %}
-        </ul>
-      </div>
-    </section>
-
     <section class="ds-card ds-panel" aria-labelledby="news-title">
       <div class="ds-panel-head">
         <div class="fms-min0">
-          <h2 class="ds-panel-title" id="news-title">Announcements</h2>
-          <p class="ds-panel-sub">Memos, policies and events</p>
+          <h2 class="ds-panel-title" id="news-title">Your announcements</h2>
+          <p class="ds-panel-sub">Read by, out of {{ attendance_today.school.headcount }} employees</p>
         </div>
-        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:messages' %}">View all</a>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:communications' %}">Manage</a>
       </div>
       <div class="ds-panel-body">
-        <ul class="fms-list">
+        <div class="fms-meters">
           {% for item in announcements %}
-          <li><span>{{ item.title }}</span><span class="fms-caption">{{ item.kind }} · {{ item.date }}</span></li>
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ item.title }}</span><span class="fms-meter-value"><strong>{{ item.value }}</strong> read</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ item.pct }}%"></i></div>
+            <div class="fms-caption">{{ item.kind }} · {{ item.date }}</div>
+          </div>
           {% endfor %}
-        </ul>
+        </div>
       </div>
     </section>
 
-    <section class="ds-card ds-panel" aria-labelledby="assistant-title">
+    <section class="ds-card ds-panel" aria-labelledby="handoff-title">
       <div class="ds-panel-head">
         <div class="fms-min0">
-          <h2 class="ds-panel-title" id="assistant-title">HR assistant</h2>
-          <p class="ds-panel-sub">Leave, payslips and faculty policies</p>
+          <h2 class="ds-panel-title" id="handoff-title">Assistant handoffs</h2>
+          <p class="ds-panel-sub">Questions the HR assistant passed to you</p>
         </div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:communications' %}">Inbox</a>
       </div>
       <div class="ds-panel-body">
-        <div class="fms-row">
-          {% for prompt in assistant_prompts %}
-          <a class="ds-btn ds-btn-secondary ds-btn-sm" href="{% url 'hr:assistant' %}">{{ prompt }}</a>
+        <ul class="fms-list">
+          {% for item in handoffs %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ item.question }}</span><span class="fms-caption">{{ item.department }}</span></span><span class="fms-caption">{{ item.when }}</span></li>
           {% endfor %}
-        </div>
+        </ul>
       </div>
     </section>
 

@@ -1,0 +1,347 @@
+{% extends "hr/base.html" %}
+{% load static %}
+{# Attendance (plan §3 Module 2, §8.3; usability tasks 1 and 2). Data: hr/sample_data.py ATTENDANCE. #}
+
+{% block scripts %}<script src="{% static 'hr/js/attendance.js' %}" defer></script>
+<script src="{% static 'hr/js/calendar.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="leave-dialog"><i class="ti ti-calendar-plus" aria-hidden="true"></i>File leave</button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="ds-alert v-success" role="status" data-flash hidden><i class="ti ti-circle-check" aria-hidden="true"></i><div class="ds-alert-body" data-flash-text></div><button class="ds-alert-close" type="button" aria-label="Dismiss message" data-flash-close><i class="ti ti-x" aria-hidden="true"></i></button></div>
+
+<div class="fms-grid is-thirds">
+  <section class="ds-card ds-panel" aria-labelledby="clock-title" data-clock data-state="{{ clock.state }}">
+    <div class="ds-panel-head">
+      <div class="fms-min0"><h2 class="ds-panel-title" id="clock-title">Today</h2><p class="ds-panel-sub">Monday, October 12</p></div>
+      <span class="ds-badge v-success"><span class="ds-dot d-success"></span>{{ clock.status }}</span>
+    </div>
+    <div class="ds-panel-body ds-stack">
+      <div>
+        <div class="fms-clock-status" data-clock-status>Timed in at {{ clock.time_in }}</div>
+        <ul class="fms-clock-log" data-clock-log>
+          {% for log in clock.logs %}<li><i class="ti ti-login" aria-hidden="true"></i>{{ log.direction }} · {{ log.time }} · {{ log.method }}</li>{% endfor %}
+        </ul>
+      </div>
+      <div class="fms-row">
+        <button type="button" class="ds-btn ds-btn-primary" data-clock-action><i class="ti ti-logout" aria-hidden="true"></i><span>Time out</span></button>
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-open="qr-dialog"><i class="ti ti-qrcode" aria-hidden="true"></i>Scan QR</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="ds-card ds-panel" aria-labelledby="hours-title">
+    <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="hours-title">Hours worked</h2><p class="ds-panel-sub">Against expected hours</p></div></div>
+    <div class="ds-panel-body">
+      <div class="fms-meters">
+        {% for item in hours %}
+        <div class="fms-meter">
+          <div class="fms-meter-head"><span>{{ item.label }}</span><span class="fms-meter-value"><strong>{{ item.value }} h</strong> of {{ item.total }} h</span></div>
+          <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ item.pct }}%"></i></div>
+          <div class="fms-caption">{{ item.note }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="ds-card ds-panel" aria-labelledby="balances-title">
+    <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="balances-title">Leave balances</h2><p class="ds-panel-sub">School year 2026–2027</p></div></div>
+    <div class="ds-panel-body">
+      <div class="fms-meters">
+        {% for leave in leave_types %}
+        <div class="fms-meter">
+          <div class="fms-meter-head"><span>{{ leave.type }}</span><span class="fms-meter-value"><strong>{{ leave.value }}</strong> of {{ leave.total }} days left</span></div>
+          <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ leave.pct }}%"></i></div>
+          <div class="fms-caption" data-pending="{{ leave.code }}" data-days="{{ leave.pending }}">{% if leave.pending %}{{ leave.pending }} days pending approval{% else %}Nothing pending{% endif %}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+</div>
+
+<div>
+  <div class="ds-tabs" role="tablist" aria-label="Attendance sections">
+    <button class="ds-tab" type="button" role="tab" id="tab-calendar" aria-controls="panel-calendar" aria-selected="true" data-hash="calendar"><i class="ti ti-calendar" aria-hidden="true"></i>Calendar and time record</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-schedule" aria-controls="panel-schedule" aria-selected="false" tabindex="-1" data-hash="schedule"><i class="ti ti-clock" aria-hidden="true"></i>Weekly schedule</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-leave" aria-controls="panel-leave" aria-selected="false" tabindex="-1" data-hash="leave"><i class="ti ti-clipboard-list" aria-hidden="true"></i>Leave history <span class="ds-tab-count" data-leave-count>{{ leave_history|length }}</span></button>
+  </div>
+
+  {# ── Calendar and time record: the Academic Calendar handoff's layout (§1, §7.4, §8, §12) on this
+     project's tokens. School events, your own events, and your daily time record as its attendance
+     layer. Rendered by calendar.js from the "calendar-data" JSON below. ── #}
+  <div class="fms-tab-panel" role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar" tabindex="0">
+    {{ calendar|json_script:"calendar-data" }}
+    <div class="cal" data-calendar>
+      <div class="cal-toolbar">
+        <div class="cal-toolbar-lead">
+          <div class="ds-segmented" role="group" aria-label="School year">
+            <button type="button" class="ds-seg" aria-pressed="true">S.Y. {{ calendar.school_year }}</button>
+          </div>
+          <p class="fms-muted" data-cal-sub>S.Y. {{ calendar.school_year }} · {{ calendar_events_count }} events · {{ calendar_mine_count }} of yours</p>
+        </div>
+        <div class="cal-toolbar-actions">
+          <label class="cal-pill"><input type="checkbox" checked data-cal-toggle="showMine" data-on="user-check" data-off="user-off"><i class="ti ti-user-check" aria-hidden="true"></i><span>My events</span></label>
+          <label class="cal-pill"><input type="checkbox" checked data-cal-toggle="showAttendance" data-on="clipboard-check" data-off="clipboard-off"><i class="ti ti-clipboard-check" aria-hidden="true"></i><span>Attendance</span></label>
+          <span class="cal-divider" aria-hidden="true"></span>
+          <button type="button" class="ds-btn ds-btn-secondary ds-btn-icon" title="Customize event colors" aria-label="Customize event colors" data-cal-colors><i class="ti ti-palette" aria-hidden="true"></i></button>
+          <button type="button" class="ds-btn ds-btn-primary" data-cal-add><i class="ti ti-plus" aria-hidden="true"></i>Add Event</button>
+        </div>
+      </div>
+
+      <div class="cal-body">
+        <div class="cal-main">
+          <div class="cal-card cal-monthnav">
+            <button type="button" class="cal-nav-btn" aria-label="Previous month" data-cal-step="-1"><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
+            <h3 class="cal-month-title" aria-live="polite" data-cal-title>October <span>2026</span></h3>
+            <button type="button" class="cal-nav-btn" aria-label="Next month" data-cal-step="1"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
+            <span class="cal-divider" aria-hidden="true"></span>
+            <div class="cal-month-pills" role="group" aria-label="Jump to month" data-cal-pills></div>
+          </div>
+
+          <div data-cal-grid>
+            <noscript><p class="fms-muted">The calendar needs JavaScript. Your attendance summary is below.</p></noscript>
+          </div>
+
+          <div class="cal-legend" data-cal-legend></div>
+
+          <ul class="fms-tally" aria-label="Your attendance, {{ dtr.title }}" data-cal-tally>
+            {% for item in dtr.summary %}<li><span class="ds-dot d-{{ item.tone }}"></span><span>{{ item.label }}</span><strong>{{ item.value }}</strong></li>{% endfor %}
+          </ul>
+
+          <div class="cal-card cal-print">
+            <span class="cal-print-label"><i class="ti ti-printer" aria-hidden="true"></i>Export</span>
+            <div class="ds-segmented" role="group" aria-label="Print layout">
+              <button type="button" class="ds-seg" aria-pressed="true" data-cal-print-view="list"><i class="ti ti-list" aria-hidden="true"></i>Full Year List</button>
+              <button type="button" class="ds-seg" aria-pressed="false" data-cal-print-view="month"><i class="ti ti-layout-grid" aria-hidden="true"></i>Monthly Sheets</button>
+            </div>
+            <div class="cal-print-actions">
+              <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-cal-csv><i class="ti ti-table-export" aria-hidden="true"></i>Download CSV</button>
+              <button type="button" class="ds-btn ds-btn-primary ds-btn-sm" data-cal-print><i class="ti ti-printer" aria-hidden="true"></i>Print / PDF</button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="cal-side" aria-label="Calendar details">
+          <section class="cal-card cal-stats" aria-labelledby="cal-stats-title">
+            <h3 class="cal-side-title" id="cal-stats-title">This Year</h3>
+            <div data-cal-stats></div>
+          </section>
+          <section class="cal-card" aria-label="Selected day" data-cal-day></section>
+          <section class="cal-card cal-list" aria-labelledby="cal-list-title">
+            <div class="cal-list-head">
+              <div class="cal-list-title-row"><h3 class="cal-list-title" id="cal-list-title">All Events</h3><span class="cal-count" data-cal-count></span></div>
+              <label class="ds-search">
+                <i class="ti ti-search" aria-hidden="true"></i>
+                <span class="ds-sr-only">Search events by title</span>
+                <input type="search" placeholder="Search events" data-cal-search>
+                <button type="button" class="ds-search-clear" aria-label="Clear search" data-cal-search-clear hidden><i class="ti ti-x" aria-hidden="true"></i></button>
+              </label>
+              <div class="cal-filters" role="group" aria-label="Filter by type" data-cal-filters></div>
+            </div>
+            <div class="cal-groups" data-cal-groups></div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  {# ── Weekly schedule ── #}
+  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-schedule" aria-labelledby="tab-schedule" tabindex="0" hidden>
+    <p class="fms-muted">Assigned by your department head · 1st semester, AY 2026–2027</p>
+    <div class="fms-grid is-thirds">
+      {% for day, items in schedule %}
+      <section class="ds-card ds-panel" aria-labelledby="day-{{ forloop.counter }}">
+        <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="day-{{ forloop.counter }}">{{ day }}</h2><p class="ds-panel-sub">{% if items %}{{ items|length }} item{{ items|length|pluralize }}{% else %}Rest day{% endif %}</p></div>{% if forloop.first %}<span class="ds-badge v-brand s-sm">Today</span>{% endif %}</div>
+        <div class="ds-panel-body">
+          {% if items %}
+          <ul class="fms-schedule">
+            {% for item in items %}<li><span class="fms-schedule-time">{{ item.time }}</span><span class="fms-min0"><span class="fms-schedule-title">{{ item.title }}</span><span class="fms-caption">{{ item.place }}</span></span></li>{% endfor %}
+          </ul>
+          {% else %}
+          <p class="fms-muted">No classes or duties.</p>
+          {% endif %}
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Leave history ── #}
+  <div class="fms-tab-panel" role="tabpanel" id="panel-leave" aria-labelledby="tab-leave" tabindex="0" hidden>
+    <section class="ds-card ds-panel p-none" aria-labelledby="history-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="history-title">Leave history</h2><p class="ds-panel-sub">Department head approves first, then HR</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-dialog-open="leave-dialog"><i class="ti ti-plus" aria-hidden="true"></i>File leave</button>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Leave</th><th scope="col" class="a-right">Days</th><th scope="col">Filed</th><th scope="col">Approval</th><th scope="col">Status</th><th scope="col">Remarks</th></tr></thead>
+          <tbody data-leave-rows>
+            {% for row in leave_history %}
+            <tr>
+              <td><div class="ds-cell-strong">{{ row.type }}</div><div class="ds-cell-sub">{{ row.dates }}</div></td>
+              <td class="a-right">{{ row.days }}</td>
+              <td>{{ row.filed }}</td>
+              <td><ol class="fms-approval">{% for step in row.steps %}<li class="is-{{ step.state }}"><i class="ti ti-{{ step.icon }}" aria-hidden="true"></i>{{ step.label }}<span class="ds-sr-only">: {{ step.state_label }}</span></li>{% endfor %}</ol></td>
+              <td><span class="ds-status v-{{ row.tone }}"><span class="ds-dot d-{{ row.tone }}"></span>{{ row.status }}</span></td>
+              <td class="fms-remarks">{{ row.remarks|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal" id="qr-dialog" aria-labelledby="qr-title" aria-describedby="qr-desc">
+  <div class="ds-modal-body">
+    <div class="ds-modal-head">
+      <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-qrcode"></i></div>
+      <h2 class="ds-modal-title" id="qr-title">Scan a campus QR code</h2>
+      <p class="ds-modal-desc" id="qr-desc">Point your phone camera at the code posted at a time station. The code changes every minute, so a photo of it will not work.</p>
+    </div>
+    <div class="fms-qr-frame" aria-hidden="true"><i class="ti ti-scan"></i><span>Camera preview</span></div>
+    <p class="fms-caption fms-center"><i class="ti ti-map-pin" aria-hidden="true"></i> Nearest station: {{ clock.station }}</p>
+  </div>
+  <div class="ds-modal-foot">
+    <div class="ds-modal-foot-row">
+      <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+      <button type="button" class="ds-btn ds-btn-primary" data-qr-scan data-station="{{ clock.station }}">Simulate scan</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="ds-modal m-md" id="leave-dialog" aria-labelledby="leave-title" aria-describedby="leave-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-leave-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-calendar-plus"></i></div>
+        <h2 class="ds-modal-title" id="leave-title">File leave</h2>
+        <p class="ds-modal-desc" id="leave-desc">Your department head reviews it first, then HR. Days are held from your balance until a decision.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="leave-type">Leave type</label>
+        <select class="ds-control" id="leave-type" data-leave-type>
+          {% for leave in leave_types %}<option value="{{ leave.code }}" data-left="{{ leave.value }}" data-name="{{ leave.type }}" data-attachment="{{ leave.attachment|yesno:'true,false' }}">{{ leave.type }} · {{ leave.value }} days left</option>{% endfor %}
+        </select>
+      </div>
+      <div class="fms-form">
+        <div class="ds-field">
+          <label class="ds-label" for="leave-start">First day <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+          <input class="ds-control" id="leave-start" type="date" aria-required="true" aria-describedby="leave-date-error" data-leave-start>
+        </div>
+        <div class="ds-field">
+          <label class="ds-label" for="leave-end">Last day <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+          <input class="ds-control" id="leave-end" type="date" aria-required="true" aria-describedby="leave-date-error" data-leave-end>
+        </div>
+      </div>
+      <p class="ds-error fms-field-error" id="leave-date-error" data-leave-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span></span></p>
+      <div class="ds-field">
+        <label class="fms-check"><input type="checkbox" data-leave-half> Half day (single day only)</label>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="leave-reason">Reason</label>
+        <textarea class="ds-control" id="leave-reason" placeholder="Optional for vacation leave"></textarea>
+      </div>
+      <div class="ds-field" data-leave-attachment hidden>
+        <label class="ds-label" for="leave-file">Medical certificate</label>
+        <input class="ds-control" id="leave-file" type="file" accept=".pdf,image/*" aria-describedby="leave-file-hint">
+        <p class="ds-hint" id="leave-file-hint">Needed for sick leave. A photo or PDF works.</p>
+      </div>
+      <div class="fms-balance" aria-live="polite" data-leave-check>Pick the dates to see how many days this uses.</div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Send request</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+{# ── Calendar modals (handoff §8.11–8.13). An employee keeps only their own events, so the
+   form has no "Add to" choice and no event type (handoff §6). ── #}
+<dialog class="ds-modal m-md" id="cal-event-dialog" aria-labelledby="cal-event-title" aria-describedby="cal-event-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-cal-event-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon cal-modal-icon" aria-hidden="true" data-cal-event-icon><i class="ti ti-user"></i></div>
+        <h2 class="ds-modal-title" id="cal-event-title" data-cal-event-heading>Add My Event</h2>
+        <p class="ds-modal-desc" id="cal-event-desc">Only you can see this</p>
+      </div>
+      <div class="ds-alert v-error cal-form-alert" role="alert" data-cal-event-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><div class="ds-alert-body"></div></div>
+      <div class="ds-field">
+        <label class="ds-label" for="cal-ev-title">Title <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <input class="ds-control" id="cal-ev-title" maxlength="150" placeholder="e.g. Dentist appointment" autocomplete="off" data-cal-field="title">
+      </div>
+      <div class="fms-form">
+        <div class="ds-field">
+          <label class="ds-label" for="cal-ev-start">Start Date <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+          <input class="ds-control" id="cal-ev-start" type="date" data-cal-field="start_date">
+        </div>
+        <div class="ds-field">
+          <label class="ds-label" for="cal-ev-end">End Date <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+          <input class="ds-control" id="cal-ev-end" type="date" data-cal-field="end_date">
+        </div>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="cal-ev-desc">Description</label>
+        <textarea class="ds-control" id="cal-ev-desc" rows="3" placeholder="Optional notes…" data-cal-field="description"></textarea>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary cal-flex-2"><i class="ti ti-device-floppy" aria-hidden="true"></i><span data-cal-event-save>Add Event</span></button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="ds-modal" id="cal-delete-dialog" aria-labelledby="cal-delete-title" aria-describedby="cal-delete-desc">
+  <div class="ds-modal-body">
+    <div class="ds-modal-head">
+      <div class="ds-modal-icon cal-modal-icon is-danger" aria-hidden="true"><i class="ti ti-trash"></i></div>
+      <h2 class="ds-modal-title" id="cal-delete-title">Delete event?</h2>
+      <div class="ds-modal-desc" id="cal-delete-desc">
+        <span class="cal-chip" data-cal-delete-chip></span>
+        <p>This event will be permanently removed from the calendar. This action cannot be undone.</p>
+      </div>
+    </div>
+  </div>
+  <div class="ds-modal-foot">
+    <div class="ds-modal-foot-row">
+      <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+      <button type="button" class="ds-btn ds-btn-destructive" data-cal-delete-confirm><i class="ti ti-trash" aria-hidden="true"></i>Delete</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="ds-modal" id="cal-colors-dialog" aria-labelledby="cal-colors-title" aria-describedby="cal-colors-desc">
+  <div class="ds-modal-body">
+    <div class="ds-modal-head">
+      <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-palette"></i></div>
+      <h2 class="ds-modal-title" id="cal-colors-title">Event Colors</h2>
+      <p class="ds-modal-desc" id="cal-colors-desc">Your picks apply in this browser only.</p>
+    </div>
+    <div class="cal-color-rows" data-cal-color-rows></div>
+  </div>
+  <div class="ds-modal-foot">
+    <div class="cal-colors-foot">
+      <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-cal-colors-reset><i class="ti ti-refresh" aria-hidden="true"></i>Reset all</button>
+      <span class="fms-grow"></span>
+      <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-dialog-close>Cancel</button>
+      <button type="button" class="ds-btn ds-btn-primary ds-btn-sm" data-cal-colors-apply><i class="ti ti-device-floppy" aria-hidden="true"></i>Apply</button>
+    </div>
+  </div>
+</dialog>
+{% endblock %}
