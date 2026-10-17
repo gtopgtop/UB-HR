@@ -463,3 +463,11 @@ textarea.ds-control { min-height: 72px; resize: vertical; }
 .ti-user-check:before { content: "\eb49"; }
 .ti-user-off:before { content: "\ecf9"; }
 .ti-writing:before { content: "\ef08"; }
+.ti-bell:before { content: "\ea35"; }
+.ti-file-alert:before { content: "\ede6"; }
+.ti-mood-smile:before { content: "\eaf7"; }
+.ti-plane-departure:before { content: "\eb9a"; }
+.ti-school:before { content: "\ecf7"; }
+.ti-send:before { content: "\eb1e"; }
+.ti-thumb-down:before { content: "\eb3b"; }
+.ti-user-plus:before { content: "\eb4b"; }

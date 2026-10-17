@@ -1,61 +1,103 @@
 {% extends "hr/base.html" %}
-{# My records (plan §3 Module 1, §8.2). The employee views; HR edits. Data: hr/sample_data.py RECORDS. #}
+{# Employee records, HR officer view (plan §3 Module 1, §8.2). HR reviews and edits; employees view their own. Data: hr/sample_data.py RECORDS. #}
 
 {% block actions %}
 <div class="ds-actions">
-  <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="correction-dialog"><i class="ti ti-edit" aria-hidden="true"></i>Request a correction</button>
+  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
+  <a class="ds-btn ds-btn-primary" href="{% url 'hr:directory' %}"><i class="ti ti-user-plus" aria-hidden="true"></i>Add employee</a>
 </div>
 {% endblock %}
 
 {% block content %}
-<div class="ds-card fms-profile">
-  <div class="ds-avatar fms-avatar-lg" aria-hidden="true">{{ summary.initials }}</div>
-  <div class="fms-grow">
-    <div class="fms-profile-name">{{ summary.name }}</div>
-    <div class="fms-muted">{{ summary.rank }} · {{ summary.department }}</div>
+<div class="fms-grid is-stats">
+  {% for stat in stats %}
+  <div class="ds-card ds-stat">
+    <div class="ds-stat-icon {{ stat.tone }}" aria-hidden="true"><i class="ti ti-{{ stat.icon }}"></i></div>
+    <div class="fms-grow">
+      <div class="ds-stat-value">{{ stat.value }}</div>
+      <div class="ds-stat-label">{{ stat.label }}</div>
+      <div class="ds-stat-hint">{{ stat.hint }}</div>
+    </div>
   </div>
-  <div class="fms-row">
-    <span class="ds-badge v-brand">{{ summary.employee_no }}</span>
-    <span class="ds-badge v-success"><span class="ds-dot d-success"></span>{{ summary.status }}</span>
-    <span class="ds-badge">Since {{ summary.since }}</span>
-  </div>
+  {% endfor %}
 </div>
 
 <div>
   <div class="ds-tabs" role="tablist" aria-label="Record sections">
-    <button class="ds-tab" type="button" role="tab" id="tab-profile" aria-controls="panel-profile" aria-selected="true" data-hash="profile"><i class="ti ti-user" aria-hidden="true"></i>Profile</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-directory" aria-controls="panel-directory" aria-selected="true" data-hash="directory"><i class="ti ti-address-book" aria-hidden="true"></i>Directory</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-corrections" aria-controls="panel-corrections" aria-selected="false" tabindex="-1" data-hash="corrections"><i class="ti ti-edit" aria-hidden="true"></i>Corrections <span class="ds-tab-count">{{ corrections_pending }}</span></button>
     <button class="ds-tab" type="button" role="tab" id="tab-employment" aria-controls="panel-employment" aria-selected="false" tabindex="-1" data-hash="employment"><i class="ti ti-briefcase" aria-hidden="true"></i>Employment</button>
-    <button class="ds-tab" type="button" role="tab" id="tab-pay" aria-controls="panel-pay" aria-selected="false" tabindex="-1" data-hash="pay"><i class="ti ti-receipt" aria-hidden="true"></i>Pay <span class="ds-tab-count">{{ payslips|length }}</span></button>
-    <button class="ds-tab" type="button" role="tab" id="tab-contributions" aria-controls="panel-contributions" aria-selected="false" tabindex="-1" data-hash="contributions"><i class="ti ti-building" aria-hidden="true"></i>Contributions</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-pay" aria-controls="panel-pay" aria-selected="false" tabindex="-1" data-hash="payroll"><i class="ti ti-receipt" aria-hidden="true"></i>Payroll</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-contributions" aria-controls="panel-contributions" aria-selected="false" tabindex="-1" data-hash="remittances"><i class="ti ti-building" aria-hidden="true"></i>Remittances</button>
     <button class="ds-tab" type="button" role="tab" id="tab-benefits" aria-controls="panel-benefits" aria-selected="false" tabindex="-1" data-hash="benefits"><i class="ti ti-gift" aria-hidden="true"></i>Benefits <span class="ds-tab-count">{{ benefits|length }}</span></button>
-    <button class="ds-tab" type="button" role="tab" id="tab-documents" aria-controls="panel-documents" aria-selected="false" tabindex="-1" data-hash="201-file"><i class="ti ti-file-text" aria-hidden="true"></i>201 file <span class="ds-tab-count">{{ documents|length }}</span></button>
+    <button class="ds-tab" type="button" role="tab" id="tab-documents" aria-controls="panel-documents" aria-selected="false" tabindex="-1" data-hash="201-files"><i class="ti ti-file-text" aria-hidden="true"></i>201 files <span class="ds-tab-count">{{ documents_missing }}</span></button>
   </div>
 
-  {# ── Profile ── #}
-  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-profile" aria-labelledby="tab-profile" tabindex="0">
-    <div class="ds-alert v-info" role="status"><i class="ti ti-info-circle" aria-hidden="true"></i><div class="ds-alert-body">HR keeps these details up to date. If something is wrong, request a correction and HR will review it.</div></div>
-
-    <div class="fms-grid is-halves">
-      <section class="ds-card ds-panel" aria-labelledby="personal-title">
-        <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="personal-title">Personal details</h2><p class="ds-panel-sub">Contact and civil status</p></div></div>
-        <div class="ds-panel-body">
-          <dl class="fms-dl">{% for label, value in personal %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+  {# ── Directory ── #}
+  <div class="fms-tab-panel" role="tabpanel" id="panel-directory" aria-labelledby="tab-directory" tabindex="0">
+    <div class="fms-dash">
+      <section class="ds-card ds-panel p-none" aria-labelledby="directory-title">
+        <div class="ds-panel-head">
+          <div><h2 class="ds-panel-title" id="directory-title">Employee directory</h2><p class="ds-panel-sub">Showing {{ employees|length }} of {{ stats.0.value }} · most recently updated first</p></div>
+          <div class="ds-search">
+            <i class="ti ti-search" aria-hidden="true"></i>
+            <label class="ds-sr-only" for="directory-search">Search employees</label>
+            <input id="directory-search" type="search" placeholder="Search employees">
+          </div>
+        </div>
+        <div class="ds-table-wrap">
+          <table class="ds-table">
+            <thead><tr><th scope="col">Employee</th><th scope="col">Department</th><th scope="col">Status</th><th scope="col">201 file</th></tr></thead>
+            <tbody>
+              {% for emp in employees %}
+              <tr{% if emp == record.employee %} aria-current="true"{% endif %}>
+                <td><div class="ds-cell-person"><div class="ds-avatar" aria-hidden="true">{{ emp.initials }}</div><div><div class="ds-cell-strong">{{ emp.name }}</div><div class="ds-cell-sub">{{ emp.position }} · {{ emp.employee_no }}</div></div></div></td>
+                <td>{{ emp.department }}</td>
+                <td><span class="ds-badge v-{{ emp.tone }} s-sm">{{ emp.status }}</span></td>
+                <td>{% if emp.missing %}<span class="ds-status v-warning"><span class="ds-dot d-warning"></span>{{ emp.missing }} missing</span>{% else %}<span class="ds-status v-success"><span class="ds-dot d-success"></span>Complete</span>{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </section>
 
       <div class="fms-col">
+        <div class="ds-card fms-profile">
+          <div class="ds-avatar fms-avatar-lg" aria-hidden="true">{{ record.employee.initials }}</div>
+          <div class="fms-grow">
+            <div class="fms-profile-name">{{ record.employee.name }}</div>
+            <div class="fms-muted">{{ record.employee.position }} · {{ record.employee.department }}</div>
+          </div>
+          <div class="fms-row">
+            <span class="ds-badge v-brand">{{ record.employee.employee_no }}</span>
+            <span class="ds-badge v-success"><span class="ds-dot d-success"></span>{{ record.employee.status }}</span>
+            <span class="ds-badge">Since {{ record.employee.since }}</span>
+          </div>
+        </div>
+
+        <section class="ds-card ds-panel" aria-labelledby="personal-title">
+          <div class="ds-panel-head">
+            <div><h2 class="ds-panel-title" id="personal-title">Personal details</h2><p class="ds-panel-sub">Contact and civil status</p></div>
+            <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:directory' %}"><i class="ti ti-pencil" aria-hidden="true"></i>Edit</a>
+          </div>
+          <div class="ds-panel-body">
+            <dl class="fms-dl">{% for label, value in record.personal %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+          </div>
+        </section>
+
         <section class="ds-card ds-panel" aria-labelledby="emergency-title">
           <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="emergency-title">Emergency contact</h2><p class="ds-panel-sub">Who HR calls first</p></div></div>
           <div class="ds-panel-body">
-            <dl class="fms-dl">{% for label, value in emergency %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+            <dl class="fms-dl">{% for label, value in record.emergency %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
           </div>
         </section>
 
         <section class="ds-card ds-panel" aria-labelledby="ids-title">
-          <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="ids-title">Government IDs</h2><p class="ds-panel-sub">Visible to you and HR officers only</p></div><i class="ti ti-shield-check fms-panel-icon" aria-hidden="true"></i></div>
+          <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="ids-title">Government IDs</h2><p class="ds-panel-sub">HR officers and the employee only · every reveal is logged</p></div><i class="ti ti-shield-check fms-panel-icon" aria-hidden="true"></i></div>
           <div class="ds-panel-body">
             <dl class="fms-dl">
-              {% for gov in government_ids %}
+              {% for gov in record.government_ids %}
               <div>
                 <dt>{{ gov.label }}</dt>
                 <dd class="fms-reveal">
@@ -69,22 +111,35 @@
         </section>
       </div>
     </div>
+  </div>
+
+  {# ── Corrections ── #}
+  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-corrections" aria-labelledby="tab-corrections" tabindex="0" hidden>
+    <div class="ds-alert v-info" role="status"><i class="ti ti-info-circle" aria-hidden="true"></i><div class="ds-alert-body">Approving a correction updates the record and keeps both the old and the new value. The employee is notified either way.</div></div>
 
     <section class="ds-card ds-panel p-none" aria-labelledby="corrections-title">
       <div class="ds-panel-head">
-        <div><h2 class="ds-panel-title" id="corrections-title">Correction requests</h2><p class="ds-panel-sub">Approved changes keep the old and new values</p></div>
-        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-dialog-open="correction-dialog"><i class="ti ti-plus" aria-hidden="true"></i>New request</button>
+        <div><h2 class="ds-panel-title" id="corrections-title">Correction requests</h2><p class="ds-panel-sub">{{ corrections_pending }} waiting for review · oldest first</p></div>
       </div>
       <div class="ds-table-wrap">
         <table class="ds-table">
-          <thead><tr><th scope="col">Field</th><th scope="col">Change</th><th scope="col">Filed</th><th scope="col">Status</th></tr></thead>
+          <thead><tr><th scope="col">Employee</th><th scope="col">Field</th><th scope="col">Change</th><th scope="col">Filed</th><th scope="col">Status</th><th scope="col" class="a-right"><span class="ds-sr-only">Actions</span></th></tr></thead>
           <tbody>
             {% for req in corrections %}
             <tr>
-              <td class="ds-cell-strong">{{ req.field }}</td>
+              <td><div class="ds-cell-strong">{{ req.name }}</div><div class="ds-cell-sub">{{ req.department }}</div></td>
+              <td>{{ req.field }}{% if req.proof %}<div class="ds-cell-sub"><i class="ti ti-file-text" aria-hidden="true"></i> {{ req.proof }}</div>{% endif %}</td>
               <td><span class="fms-old">{{ req.old }}</span> <i class="ti ti-chevron-right fms-arrow" aria-hidden="true"></i><span class="ds-sr-only">changed to</span> {{ req.new }}</td>
               <td>{{ req.filed }}</td>
-              <td><span class="ds-status v-{{ req.tone }}"><span class="ds-dot d-{{ req.tone }}"></span>{{ req.status }}</span></td>
+              <td><span class="ds-status v-{{ req.tone }}"><span class="ds-dot d-{{ req.tone }}"></span>{{ req.status }}</span>{% if req.remark %}<div class="ds-cell-sub">{{ req.remark }}</div>{% endif %}</td>
+              <td class="a-right">
+                {% if req.status == "Pending" %}
+                <div class="fms-row fms-end">
+                  <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-dialog-open="decline-dialog" aria-label="Decline {{ req.field|lower }} correction for {{ req.name }}">Decline</button>
+                  <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" aria-label="Approve {{ req.field|lower }} correction for {{ req.name }}"><i class="ti ti-check" aria-hidden="true"></i>Approve</button>
+                </div>
+                {% endif %}
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -94,22 +149,49 @@
   </div>
 
   {# ── Employment ── #}
-  <div class="fms-tab-panel" role="tabpanel" id="panel-employment" aria-labelledby="tab-employment" tabindex="0" hidden>
-    <section class="ds-card ds-panel" aria-labelledby="history-title">
+  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-employment" aria-labelledby="tab-employment" tabindex="0" hidden>
+    <div class="fms-grid is-halves">
+      <section class="ds-card ds-panel" aria-labelledby="steps-title">
+        <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="steps-title">Step increments due</h2><p class="ds-panel-sub">Salary step dates in the next 60 days</p></div></div>
+        <div class="ds-panel-body">
+          <ul class="fms-list">
+            {% for item in step_increments %}
+            <li><span class="fms-min0"><span class="fms-schedule-title">{{ item.name }}</span><span class="fms-caption">{{ item.department }} · {{ item.grade }}</span></span><span class="ds-badge v-info s-sm">{{ item.due }}</span></li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+
+      <section class="ds-card ds-panel" aria-labelledby="headcount-title">
+        <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="headcount-title">Headcount by status</h2><p class="ds-panel-sub">{{ stats.0.value }} employees</p></div></div>
+        <div class="ds-panel-body">
+          <div class="fms-meters">
+            {% for status in status_counts %}
+            <div class="fms-meter">
+              <div class="fms-meter-head"><span>{{ status.label }}</span><span class="fms-meter-value"><strong>{{ status.value }}</strong> of {{ status.total }}</span></div>
+              <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ status.pct }}%"></i></div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="ds-card ds-panel" aria-labelledby="movements-title">
       <div class="ds-panel-head">
-        <div><h2 class="ds-panel-title" id="history-title">Employment history</h2><p class="ds-panel-sub">Position, department, salary grade and step</p></div>
-        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-printer" aria-hidden="true"></i>Service record</button>
+        <div><h2 class="ds-panel-title" id="movements-title">Recent movements</h2><p class="ds-panel-sub">Hires, promotions, transfers and separations this school year</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-printer" aria-hidden="true"></i>Service records</button>
       </div>
       <div class="ds-panel-body">
         <ol class="fms-timeline">
-          {% for item in history %}
-          <li{% if item.current %} class="is-current"{% endif %}>
+          {% for item in movements %}
+          <li>
             <div class="fms-timeline-head">
-              <span class="fms-schedule-title">{{ item.position }}</span>
-              {% if item.current %}<span class="ds-badge v-brand s-sm">Current</span>{% endif %}
+              <span class="fms-schedule-title">{{ item.name }}</span>
+              <span class="ds-badge v-{{ item.tone }} s-sm">{{ item.kind }}</span>
             </div>
-            <div class="fms-muted">{{ item.department }} · {{ item.grade }}</div>
-            <div class="fms-caption">{{ item.dates }} · {{ item.note }}</div>
+            <div class="fms-muted">{{ item.detail }}</div>
+            <div class="fms-caption">{{ item.date }}</div>
           </li>
           {% endfor %}
         </ol>
@@ -117,45 +199,46 @@
     </section>
   </div>
 
-  {# ── Pay ── #}
+  {# ── Payroll ── #}
   <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-pay" aria-labelledby="tab-pay" tabindex="0" hidden>
     <section class="ds-card ds-panel" aria-labelledby="payslip-title">
       <div class="ds-panel-head">
-        <div><h2 class="ds-panel-title" id="payslip-title">Latest payslip</h2><p class="ds-panel-sub">{{ latest_payslip.period }} · Released {{ latest_payslip.released }}</p></div>
-        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-download" aria-hidden="true"></i>Download PDF</button>
+        <div><h2 class="ds-panel-title" id="payslip-title">Current payroll run</h2><p class="ds-panel-sub">{{ payroll.period }} · {{ payroll.employees }} employees · {{ payroll.released }}</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-check" aria-hidden="true"></i>Release payslips</button>
       </div>
       <div class="ds-panel-body">
         <div class="fms-grid is-halves">
           <div>
             <h3 class="ds-eyebrow fms-ledger-title">Earnings</h3>
             <dl class="fms-ledger">
-              {% for item in latest_payslip.earnings %}<div><dt>{{ item.label }}</dt><dd>{{ item.amount }}</dd></div>{% endfor %}
-              <div class="is-total"><dt>Gross pay</dt><dd>{{ latest_payslip.gross }}</dd></div>
+              {% for item in payroll.earnings %}<div><dt>{{ item.label }}</dt><dd>{{ item.amount }}</dd></div>{% endfor %}
+              <div class="is-total"><dt>Gross pay</dt><dd>{{ payroll.gross }}</dd></div>
             </dl>
           </div>
           <div>
             <h3 class="ds-eyebrow fms-ledger-title">Deductions and contributions</h3>
             <dl class="fms-ledger">
-              {% for item in latest_payslip.deductions %}<div><dt>{{ item.label }}</dt><dd>{{ item.amount }}</dd></div>{% endfor %}
-              <div class="is-total"><dt>Total deductions</dt><dd>{{ latest_payslip.withheld }}</dd></div>
+              {% for item in payroll.deductions %}<div><dt>{{ item.label }}</dt><dd>{{ item.amount }}</dd></div>{% endfor %}
+              <div class="is-total"><dt>Total deductions</dt><dd>{{ payroll.withheld }}</dd></div>
             </dl>
           </div>
         </div>
-        <div class="fms-net"><span>Net pay</span><strong>{{ latest_payslip.net }}</strong></div>
+        <div class="fms-net"><span>Net payroll</span><strong>{{ payroll.net }}</strong></div>
       </div>
     </section>
 
     <section class="ds-card ds-panel p-none" aria-labelledby="payslips-title">
-      <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="payslips-title">All payslips</h2><p class="ds-panel-sub">View only · amounts in pesos</p></div></div>
+      <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="payslips-title">Payroll runs</h2><p class="ds-panel-sub">School-wide · amounts in pesos</p></div></div>
       <div class="ds-table-wrap">
         <table class="ds-table fms-num">
-          <thead><tr><th scope="col">Period</th><th scope="col">Released</th><th scope="col" class="a-right">Gross</th><th scope="col" class="a-right">Deductions</th><th scope="col" class="a-right">Net</th><th scope="col" class="a-right"><span class="ds-sr-only">Download</span></th></tr></thead>
+          <thead><tr><th scope="col">Period</th><th scope="col">Status</th><th scope="col" class="a-right">Gross</th><th scope="col" class="a-right">Deductions</th><th scope="col" class="a-right">Net</th><th scope="col" class="a-right"><span class="ds-sr-only">Download</span></th></tr></thead>
           <tbody>
-            {% for slip in payslips %}
+            {% for run in payroll_runs %}
             <tr>
-              <td class="ds-cell-strong">{{ slip.period }}</td><td>{{ slip.released }}</td>
-              <td class="a-right">{{ slip.gross }}</td><td class="a-right">{{ slip.withheld }}</td><td class="a-right ds-cell-strong">{{ slip.net }}</td>
-              <td class="a-right"><button type="button" class="ds-row-action" aria-label="Download payslip for {{ slip.period }}"><i class="ti ti-download" aria-hidden="true"></i></button></td>
+              <td class="ds-cell-strong">{{ run.period }}</td>
+              <td><span class="ds-status v-{{ run.tone }}"><span class="ds-dot d-{{ run.tone }}"></span>{{ run.released }}</span></td>
+              <td class="a-right">{{ run.gross }}</td><td class="a-right">{{ run.withheld }}</td><td class="a-right ds-cell-strong">{{ run.net }}</td>
+              <td class="a-right"><button type="button" class="ds-row-action" aria-label="Download payroll register for {{ run.period }}"><i class="ti ti-download" aria-hidden="true"></i></button></td>
             </tr>
             {% endfor %}
           </tbody>
@@ -164,20 +247,23 @@
     </section>
   </div>
 
-  {# ── Contributions ── #}
+  {# ── Remittances ── #}
   <div class="fms-tab-panel" role="tabpanel" id="panel-contributions" aria-labelledby="tab-contributions" tabindex="0" hidden>
     <section class="ds-card ds-panel p-none" aria-labelledby="contrib-title">
-      <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="contrib-title">Contributions and tax, 2026</h2><p class="ds-panel-sub">Your monthly share · amounts in pesos</p></div></div>
+      <div class="ds-panel-head">
+        <div><h2 class="ds-panel-title" id="contrib-title">Remittances, 2026</h2><p class="ds-panel-sub">Employee and employer shares together · amounts in pesos</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
+      </div>
       <div class="ds-table-wrap">
         <table class="ds-table fms-num">
-          <thead><tr><th scope="col">Month</th>{% for col in contributions.columns %}<th scope="col" class="a-right">{{ col }}</th>{% endfor %}<th scope="col" class="a-right">Total</th></tr></thead>
+          <thead><tr><th scope="col">Month</th>{% for col in remittances.columns %}<th scope="col" class="a-right">{{ col }}</th>{% endfor %}<th scope="col" class="a-right">Total</th><th scope="col">Status</th></tr></thead>
           <tbody>
-            {% for row in contributions.rows %}
-            <tr><th scope="row">{{ row.month }}</th>{% for amount in row.amounts %}<td class="a-right">{{ amount }}</td>{% endfor %}<td class="a-right ds-cell-strong">{{ row.total }}</td></tr>
+            {% for row in remittances.rows %}
+            <tr><th scope="row">{{ row.month }}</th>{% for amount in row.amounts %}<td class="a-right">{{ amount }}</td>{% endfor %}<td class="a-right ds-cell-strong">{{ row.total }}</td><td><span class="ds-status v-{{ row.tone }}"><span class="ds-dot d-{{ row.tone }}"></span>{{ row.status }}</span></td></tr>
             {% endfor %}
           </tbody>
           <tfoot>
-            <tr><th scope="row">Total, 2026 to date</th>{% for total in contributions.totals %}<td class="a-right">{{ total }}</td>{% endfor %}<td class="a-right">{{ contributions.grand_total }}</td></tr>
+            <tr><th scope="row">Total, 2026 to date</th>{% for total in remittances.totals %}<td class="a-right">{{ total }}</td>{% endfor %}<td class="a-right">{{ remittances.grand_total }}</td><td></td></tr>
           </tfoot>
         </table>
       </div>
@@ -190,34 +276,74 @@
       {% for benefit in benefits %}
       <div class="ds-card ds-stat">
         <div class="ds-stat-icon" aria-hidden="true"><i class="ti ti-{{ benefit.icon }}"></i></div>
-        <div class="fms-grow">
-          <div class="fms-schedule-title">{{ benefit.name }}</div>
-          <div class="fms-muted">{{ benefit.detail }}</div>
-          <div class="fms-caption">{{ benefit.coverage }}</div>
+        <div class="fms-grow ds-stack">
+          <div>
+            <div class="fms-schedule-title">{{ benefit.name }}</div>
+            <div class="fms-muted">{{ benefit.detail }}</div>
+            <div class="fms-caption">{{ benefit.coverage }}</div>
+          </div>
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>Enrolled</span><span class="fms-meter-value"><strong>{{ benefit.value }}</strong> of {{ benefit.total }} {{ benefit.eligible_note }}</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ benefit.pct }}%"></i></div>
+          </div>
         </div>
-        <span class="ds-badge v-success s-sm"><span class="ds-dot d-success"></span>Enrolled</span>
       </div>
       {% endfor %}
     </div>
   </div>
 
-  {# ── 201 file ── #}
-  <div class="fms-tab-panel" role="tabpanel" id="panel-documents" aria-labelledby="tab-documents" tabindex="0" hidden>
-    <section class="ds-card ds-panel p-none" aria-labelledby="docs-title">
+  {# ── 201 files ── #}
+  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-documents" aria-labelledby="tab-documents" tabindex="0" hidden>
+    <section class="ds-card ds-panel" aria-labelledby="files-title">
+      <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="files-title">201 file completeness</h2><p class="ds-panel-sub">Appointment papers, clearances, diplomas, licenses and certificates</p></div></div>
+      <div class="ds-panel-body">
+        <div class="fms-meter">
+          <div class="fms-meter-head"><span>Complete 201 files</span><span class="fms-meter-value"><strong>{{ files_complete.value }}</strong> of {{ files_complete.total }}</span></div>
+          <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ files_complete.pct }}%"></i></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel p-none" aria-labelledby="missing-title">
       <div class="ds-panel-head">
-        <div><h2 class="ds-panel-title" id="docs-title">201 file</h2><p class="ds-panel-sub">Scanned appointment papers, diplomas and certificates</p></div>
-        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-upload" aria-hidden="true"></i>Upload document</button>
+        <div><h2 class="ds-panel-title" id="missing-title">Missing documents</h2><p class="ds-panel-sub">Showing {{ missing_documents|length }} of {{ documents_missing }} · oldest request first</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-speakerphone" aria-hidden="true"></i>Send reminders</button>
       </div>
       <div class="ds-table-wrap">
         <table class="ds-table">
-          <thead><tr><th scope="col">Document</th><th scope="col">Category</th><th scope="col">Uploaded</th><th scope="col" class="a-right"><span class="ds-sr-only">Download</span></th></tr></thead>
+          <thead><tr><th scope="col">Employee</th><th scope="col">Document</th><th scope="col">Requested</th><th scope="col">Status</th></tr></thead>
           <tbody>
-            {% for doc in documents %}
+            {% for doc in missing_documents %}
+            <tr>
+              <td><div class="ds-cell-strong">{{ doc.name }}</div><div class="ds-cell-sub">{{ doc.department }}</div></td>
+              <td>{{ doc.document }}</td>
+              <td>{{ doc.requested }}</td>
+              <td><span class="ds-status v-{{ doc.tone }}"><span class="ds-dot d-{{ doc.tone }}"></span>{{ doc.status }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel p-none" aria-labelledby="uploads-title">
+      <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="uploads-title">Uploads to verify</h2><p class="ds-panel-sub">Checked against the original before they join the 201 file</p></div></div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Document</th><th scope="col">Employee</th><th scope="col">Category</th><th scope="col">Uploaded</th><th scope="col" class="a-right"><span class="ds-sr-only">Actions</span></th></tr></thead>
+          <tbody>
+            {% for doc in uploads %}
             <tr>
               <td><div class="ds-cell-person"><div class="ds-stat-icon" aria-hidden="true"><i class="ti ti-file-text"></i></div><div><div class="ds-cell-strong">{{ doc.name }}</div><div class="ds-cell-sub">{{ doc.size }}</div></div></div></td>
+              <td>{{ doc.employee }}</td>
               <td><span class="ds-badge s-sm">{{ doc.category }}</span></td>
               <td>{{ doc.uploaded }}</td>
-              <td class="a-right"><button type="button" class="ds-row-action" aria-label="Download {{ doc.name }}"><i class="ti ti-download" aria-hidden="true"></i></button></td>
+              <td class="a-right">
+                <div class="fms-row fms-end">
+                  <button type="button" class="ds-row-action" aria-label="View {{ doc.name }} from {{ doc.employee }}"><i class="ti ti-eye" aria-hidden="true"></i></button>
+                  <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" aria-label="Verify {{ doc.name }} from {{ doc.employee }}"><i class="ti ti-check" aria-hidden="true"></i>Verify</button>
+                </div>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -229,36 +355,24 @@
 {% endblock %}
 
 {% block dialogs %}
-<dialog class="ds-modal m-md" id="correction-dialog" aria-labelledby="correction-title" aria-describedby="correction-desc">
+<dialog class="ds-modal m-md" id="decline-dialog" aria-labelledby="decline-title" aria-describedby="decline-desc">
   <form method="dialog" novalidate class="fms-dialog-form">
     <div class="ds-modal-body">
       <div class="ds-modal-head">
-        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-edit"></i></div>
-        <h2 class="ds-modal-title" id="correction-title">Request a correction</h2>
-        <p class="ds-modal-desc" id="correction-desc">HR reviews the change. Once approved, your record keeps both the old and the new value.</p>
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-x"></i></div>
+        <h2 class="ds-modal-title" id="decline-title">Decline the correction</h2>
+        <p class="ds-modal-desc" id="decline-desc">The record stays as it is. The employee sees your remark and can refile.</p>
       </div>
       <div class="ds-field">
-        <label class="ds-label" for="correction-field">Field to correct</label>
-        <select class="ds-control" id="correction-field">{% for field in correction_fields %}<option>{{ field }}</option>{% endfor %}</select>
-      </div>
-      <div class="ds-field">
-        <label class="ds-label" for="correction-current">Current value</label>
-        <input class="ds-control" id="correction-current" value="{{ personal.3.1 }}" readonly>
-      </div>
-      <div class="ds-field">
-        <label class="ds-label" for="correction-new">Correct value <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
-        <input class="ds-control" id="correction-new" aria-required="true">
-      </div>
-      <div class="ds-field">
-        <label class="ds-label" for="correction-note">Reason or proof</label>
-        <textarea class="ds-control" id="correction-note" aria-describedby="correction-note-hint"></textarea>
-        <p class="ds-hint" id="correction-note-hint">You can attach a supporting document from the 201 file tab.</p>
+        <label class="ds-label" for="decline-remark">Remark <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <textarea class="ds-control" id="decline-remark" aria-required="true" aria-describedby="decline-remark-hint"></textarea>
+        <p class="ds-hint" id="decline-remark-hint">Say what is missing, for example the supporting document to attach.</p>
       </div>
     </div>
     <div class="ds-modal-foot">
       <div class="ds-modal-foot-row">
         <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
-        <button type="submit" class="ds-btn ds-btn-primary">Send to HR</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Decline</button>
       </div>
     </div>
   </form>

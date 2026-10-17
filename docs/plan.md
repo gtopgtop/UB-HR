@@ -1074,6 +1074,7 @@ erDiagram
 ### 9.1 Approach
 
 - **Role switcher.** A "View as" control in the header (Employee, Department Head, HR Officer, HR Admin, Executive, Wellness Officer). Switching changes the nav and the landing page. There is no login in the prototype.
+- **Sample user: an HR officer.** Until the role switcher exists, the prototype shows one sample user, Alex Rivera, who holds the **HR Officer** role, not a regular teaching or non-teaching staff member. The "My work" screens (Dashboard, Records, Attendance, Wellness, Messages, HR assistant) therefore show the HR officer's school-wide view: department figures, queues to process, aggregates and alerts. They do not show one employee's own records. The Employee versions of those screens (§9.2) come back once the role switcher is built.
 - **Static data.** Sample data lives in a Python module and is passed to templates as context. Pages still make **zero database queries**, so the existing test stays valid.
 - **Charts.** Chart.js loaded from a CDN with a pinned version, plus `chartjs-chart-matrix` for the heatmaps. Colours come from the existing tokens (`--maroon`, `--gold`).
 - **Branding.** Generic school. `/dashboard/` sample data loses "University of Batangas", "Prof. Maria L. Reyes" and "CICT", and the test marker is updated to match.
@@ -1081,6 +1082,8 @@ erDiagram
 ### 9.2 Screens
 
 **Tier 1** is needed for the pitch and the SUS tasks. **Tier 2** is nice to show.
+
+> **Current prototype.** The sample user is an HR officer (§9.1), so the "My work" screens are built in their HR Officer version. Dashboard covers the HR dashboard's real-time metrics and queues. Records covers the employee directory, correction requests, payroll runs, remittances, benefits enrolment and 201-file completeness. Attendance covers school-wide attendance by department, the policy watch list, leave processing (step 2) and the school calendar, which HR edits. Wellness shows aggregates only (§7.3). Messages has the employee inbox, anonymous concerns, the announcements composer and notifications. HR assistant has handoffs and FAQ review. The Employee rows below are still the target for the Employee view.
 
 | Role | Screen | Status | Tier |
 |---|---|---|---|
@@ -1110,7 +1113,7 @@ erDiagram
 | Screen | Decision |
 |---|---|
 | `/` (bracketed placeholder Home) | Retire in favour of `/dashboard/` (see §12) |
-| `/dashboard/` | Becomes the Employee landing page; make generic; swap SVG charts for Chart.js |
+| `/dashboard/` | Moved to `/` as the landing page and made generic. It currently shows the HR Officer's dashboard, since the sample user is an HR officer (§9.1). The Employee version returns with the role switcher. Swap SVG charts for Chart.js |
 | Header nav (`base.html`) | "Career" becomes a small dropdown: Progress, Evaluations, Evaluation breakdown. The gold "Admin dashboard" button is replaced by the "View as" role switcher. |
 | `/wellness/` | Keep; add insights, consent and concern follow-up |
 | `/admin-dashboard/` | Becomes the HR dashboard; fill the placeholders; add burnout, retention and stagnation panels |
@@ -1149,7 +1152,7 @@ Each iteration ends with a review by the team (and ideally a few end users), fol
 |---|---|
 | **0: Plan** | This document, reviewed and adjusted |
 | **1: Shell** | Role switcher, per-role navigation, Chart.js setup, sample-data module, generic branding, updated tests |
-| **2: Employee** | Dashboard, My records, Attendance & leave, Career, Evaluation breakdown with AI interpretation, Wellness updates (Tier 1) |
+| **2: Employee** | Dashboard, My records, Attendance & leave, Career, Evaluation breakdown with AI interpretation, Wellness updates (Tier 1). The "My work" screens were built first in their HR Officer version, for the HR-officer sample user (§9.1); the Employee versions follow with the role switcher |
 | **3: Oversight** | Department dashboard and approvals, HR dashboard rebuild, computation-request queue, alerts and interventions |
 | **4: Analytics** | Executive analytics, Wellness officer dashboard, HR Admin roles and risk-weight screens |
 | **5: Polish** | Tier 2 screens as time allows; walk through every §10 task; check phone widths |
@@ -1167,3 +1170,4 @@ Each iteration ends with a review by the team (and ideally a few end users), fol
 | 5 | Consent duration for wellness-officer access | 90 days, revocable |
 | 6 | Shareable version of this plan for the pitch | A one-page approval summary exists as a shared doc. Produce a full shareable version only after this plan is approved. |
 | 7 | Which language model powers the evaluation interpretation, and is it acceptable for evaluation data to leave the school's servers? | Decide before a real build. The prototype uses fixed sample text, so nothing is sent anywhere. |
+| 8 | The sample user is an HR officer (§9.1), so Employee tasks 1–9 in §10 cannot be done on the "My work" screens as they stand. How do we bring the Employee view back? | Build the role switcher (iteration 1) and keep both versions of each "My work" screen, switching by role. |

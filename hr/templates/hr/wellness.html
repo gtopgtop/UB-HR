@@ -1,0 +1,160 @@
+{% extends "hr/base.html" %}
+{# Wellness, HR officer view (plan §3 Module 5, §5.1, §6.1, §7.3). Aggregates only, groups of 5 or more. Data: hr/sample_data.py WELLNESS. #}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
+  <a class="ds-btn ds-btn-primary" href="{% url 'hr:alerts' %}"><i class="ti ti-plus" aria-hidden="true"></i>Start an intervention</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="ds-alert v-info" role="status"><i class="ti ti-lock" aria-hidden="true"></i><div class="ds-alert-body">You see groups of 5 or more people only. Individual check-ins stay with the employee; the wellness officer sees one only when that employee consents.</div></div>
+
+<div class="fms-grid is-stats">
+  {% for stat in stats %}
+  <div class="ds-card ds-stat">
+    <div class="ds-stat-icon {{ stat.tone }}" aria-hidden="true"><i class="ti ti-{{ stat.icon }}"></i></div>
+    <div class="fms-grow">
+      <div class="ds-stat-value">{{ stat.value }}</div>
+      <div class="ds-stat-label">{{ stat.label }}</div>
+      <div class="ds-stat-hint">{{ stat.hint }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="fms-dash">
+  <div class="fms-col">
+
+    <section class="ds-card ds-panel" aria-labelledby="burnout-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="burnout-title">Burnout risk by department</h2>
+          <p class="ds-panel-sub">Score out of 100 · Watch from 50, High from 70</p>
+        </div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:alerts' %}">Alerts</a>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for dept in burnout %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ dept.name }}</span><span class="fms-meter-value"><strong>{{ dept.score }}</strong> <span class="ds-badge v-{{ dept.tone }} s-sm">{{ dept.level }}</span></span></div>
+            <div class="fms-meter-track is-{{ dept.tone }}" aria-hidden="true"><i style="width: {{ dept.pct }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="focus-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="focus-title">Why {{ focus.name }} is {{ focus.level|lower }}</h2>
+          <p class="ds-panel-sub">Score {{ focus.score }} · each factor scored out of 100, then weighted</p>
+        </div>
+        <span class="ds-badge v-{{ focus.tone }}"><span class="ds-dot d-{{ focus.tone }}"></span>{{ focus.level }}</span>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for factor in focus.factors %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ factor.label }}</span><span class="fms-meter-value"><strong>{{ factor.points }}</strong> pts · {{ factor.score }} × {{ factor.weight }}%</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ factor.pct }}%"></i></div>
+            <div class="fms-caption">{{ factor.source }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <div class="fms-grid is-halves">
+      {% for item in trends %}
+      <section class="ds-card ds-panel" aria-labelledby="trend-{{ forloop.counter }}">
+        <div class="ds-panel-head">
+          <div class="fms-min0">
+            <h2 class="ds-panel-title" id="trend-{{ forloop.counter }}">{{ item.label }}</h2>
+            <p class="ds-panel-sub">Whole school, last {{ item.trend.dots|length }} weeks</p>
+          </div>
+        </div>
+        <div class="ds-panel-body">
+          <div class="fms-figure">
+            <div>
+              <div class="fms-figure-value">{{ item.value }}<span> / 5</span></div>
+              <span class="ds-badge v-{{ item.tone }} s-sm">{{ item.delta }} in {{ item.trend.dots|length }} weeks</span>
+            </div>
+            <figure class="fms-spark">
+              <svg viewBox="0 0 {{ item.trend.width }} {{ item.trend.height }}" width="{{ item.trend.width }}" height="{{ item.trend.height }}" role="img" aria-label="{{ item.label }} by week: {{ item.trend.summary }}">
+                <polyline points="{{ item.trend.points }}"/>
+                {% for dot in item.trend.dots %}<circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="4"{% if forloop.last %} class="is-current"{% endif %}><title>Week of {{ dot.label }}: {{ dot.value }}</title></circle>{% endfor %}
+              </svg>
+              {% with last=item.trend.dots|last %}<figcaption class="fms-caption">Weeks of {{ item.trend.dots.0.label }} to {{ last.label }}</figcaption>{% endwith %}
+            </figure>
+          </div>
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="fms-col is-side">
+
+    <section class="ds-card ds-panel" aria-labelledby="interventions-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="interventions-title">Interventions</h2>
+          <p class="ds-panel-sub">Owner, follow-up and outcome</p>
+        </div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:alerts' %}">View all</a>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for item in interventions %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ item.title }}</span><span class="fms-caption">{{ item.group }} · {{ item.owner }} · {{ item.follow_up }}</span></span><span class="ds-badge{% if item.tone %} v-{{ item.tone }}{% endif %} s-sm">{{ item.status }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="survey-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="survey-title">{{ survey.title }}</h2>
+          <p class="ds-panel-sub">Anonymous · {{ survey.closes }}</p>
+        </div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <div class="fms-meter">
+          <div class="fms-meter-head"><span>Responses</span><span class="fms-meter-value"><strong>{{ survey.value }}</strong> of {{ survey.total }}</span></div>
+          <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ survey.pct }}%"></i></div>
+        </div>
+        <div class="fms-row fms-between">
+          <span class="fms-muted">Engagement index <strong>{{ survey.index }}</strong> / 5 · {{ survey.index_delta }} vs last term</span>
+          <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="topics-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="topics-title">Anonymous concerns</h2>
+          <p class="ds-panel-sub">HR topics this semester · counts only</p>
+        </div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:messages' %}#concerns">Inbox</a>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for item in concern_topics %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ item.topic }}</span><span class="fms-meter-value"><strong>{{ item.value }}</strong></span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ item.pct }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+{% endblock %}

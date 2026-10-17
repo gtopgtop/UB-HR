@@ -1,9 +1,10 @@
 // Calendar and time record on the Attendance page. The layout and behaviour follow the
 // Academic Calendar handoff: month grid with multi-day strips (§7.4), day panel, "This Year"
-// strip, all-events list, colour overrides (§7.2), CSV (§8.14) and print (§8.15). Your
-// daily time record is its attendance layer (§10, adapted: one person, not a school).
-// Prototype only: your own events live in memory, so a reload resets them. Colours and the
-// two layer toggles are remembered in this browser.
+// strip, all-events list, colour overrides (§7.2), CSV (§8.14) and print (§8.15). School-wide
+// daily attendance is its attendance layer (§10, with departments in place of sections). HR
+// keeps the school calendar (§6, ACADEMIC_STAFF), so school events can be added, edited and deleted.
+// Prototype only: events live in memory, so a reload resets them. Colours and the two layer
+// toggles are remembered in this browser.
 (() => {
   const root = document.querySelector("[data-calendar]");
   if (!root) return;
@@ -79,7 +80,9 @@
 
   // ── State (handoff §8.1) ──
   const toggleKey = (name) => `fms.calendar.${name}`;
+  const canSchool = Boolean(data.can_edit_school);
   const state = {
+    school: data.events.map((ev) => ({ ...ev })),
     mine: data.mine.map((ev) => ({ ...ev })),
     showMine: store.get(toggleKey("showMine")) !== "0",
     showAttendance: store.get(toggleKey("showAttendance")) !== "0",
@@ -95,32 +98,32 @@
   // School events and your own as one list. Their ids come from different tables, so `uid`
   // tells them apart and `mine` says which one owns the row.
   const items = () => [
-    ...data.events.map((ev) => ({ ...ev, uid: `school-${ev.event_id}`, mine: false })),
+    ...state.school.map((ev) => ({ ...ev, uid: `school-${ev.event_id}`, mine: false })),
     ...(state.showMine ? state.mine.map((ev) => ({ ...ev, uid: `mine-${ev.event_id}`, mine: true, event_type: PERSONAL })) : []),
   ];
 
-  // ── Attendance layer: your record for a day, never for a day after today ──
+  // ── Attendance layer: the school's record for a day, never for a day after today ──
+  // Amber means a department still has people who have not timed in (handoff §10.3, AttendanceDayNote).
   const attendanceOn = () => state.showAttendance;
-  const timeShort = (t) => (t ? t.replace(/\s?[AP]M$/, "") : "");
+  const completeCount = (rec) => rec.departments.filter((d) => d.complete).length;
   function noteFor(k) {
     if (!attendanceOn() || k > today) return null;
     const rec = data.attendance[k];
     if (!rec) return null;
-    const variant = { present: "success", late: "warning", leave: "info", absent: "error" }[rec.status] ?? "";
-    const text = rec.time_in ? timeShort(rec.time_in) : rec.status === "leave" ? "Leave" : "Absent";
-    const title = [rec.label, rec.time_in && `in ${rec.time_in}`, rec.time_out && `out ${rec.time_out}`, rec.still_in && "still in"]
-      .filter(Boolean).join(" · ");
+    const done = completeCount(rec);
+    const variant = done === rec.departments.length ? "success" : "warning";
+    const title = `${rec.present} of ${rec.staff} present · ${done} of ${plural(rec.departments.length, "department")} complete`;
     return {
       title,
-      html: `<span class="ds-badge s-sm v-${variant} cal-note" title="${esc(title)}"><i class="ti ti-user-check" aria-hidden="true"></i><span class="cal-note-text">${esc(text)}</span></span>`,
+      html: `<span class="ds-badge s-sm v-${variant} cal-note" title="${esc(title)}"><i class="ti ti-user-check" aria-hidden="true"></i><span class="cal-note-text">${rec.present}</span><span class="ds-sr-only"> present</span></span>`,
     };
   }
-  const noWorkEvent = (k) => data.events.find((ev) => noWork.has(ev.event_type) && ev.start_date <= k && ev.end_date >= k);
+  const noWorkEvent = (k) => state.school.find((ev) => noWork.has(ev.event_type) && ev.start_date <= k && ev.end_date >= k);
 
   // ── Header ──
   function renderSub() {
     const mine = state.showMine && state.mine.length ? ` · ${state.mine.length} of yours` : "";
-    $("[data-cal-sub]").textContent = `S.Y. ${data.school_year} · ${plural(data.events.length, "event")}${mine}`;
+    $("[data-cal-sub]").textContent = `S.Y. ${data.school_year} · ${plural(state.school.length, "event")}${mine}`;
     root.querySelectorAll("[data-cal-toggle]").forEach((input) => {
       input.checked = state[input.dataset.calToggle];
       input.nextElementSibling.className = `ti ti-${input.checked ? input.dataset.on : input.dataset.off}`;
@@ -226,7 +229,7 @@
     const types = state.showMine ? TYPES : schoolTypes();
     const swatches = types.map((t) => `<span class="cal-legend-item"><span class="cal-swatch" style="${evStyle(t)}"></span>${esc(t.label)}</span>`).join("");
     const note = attendanceOn()
-      ? '<span class="cal-legend-note"><i class="ti ti-user-check" aria-hidden="true"></i>Your time in · green: on time · amber: late · blue: on leave · red: absent</span>'
+      ? '<span class="cal-legend-note"><i class="ti ti-user-check" aria-hidden="true"></i>People present · green: every department complete · amber: some not timed in yet</span>'
       : "";
     $("[data-cal-legend]").innerHTML = swatches + note;
 
@@ -235,15 +238,17 @@
     const prefix = iso(year, state.activeMonth, 1).slice(0, 8);
     tally.hidden = !attendanceOn() || `${prefix}01` > today;
     if (tally.hidden) return;
-    const recs = Object.entries(data.attendance).filter(([k]) => k.startsWith(prefix)).map(([, r]) => r);
-    const late = recs.filter((r) => r.status === "late");
+    // Closed days only: today still has people who have not timed in. Matches sample_data._month_tally.
+    const recs = Object.entries(data.attendance).filter(([k]) => k.startsWith(prefix) && k < today).map(([, r]) => r);
+    const sum = (key) => recs.reduce((n, r) => n + r[key], 0);
+    const expected = sum("staff") - sum("on_leave");
     const rows = [
-      ["Days present", recs.filter((r) => r.status === "present" || r.status === "late").length, "success"],
-      ["Late", `${late.length} · ${late.reduce((n, r) => n + r.minutes_late, 0)} min`, "warning"],
-      ["On leave", recs.filter((r) => r.status === "leave").length, "info"],
-      ["Absent", recs.filter((r) => r.status === "absent").length, "error"],
+      ["Attendance rate", expected ? `${((sum("present") / expected) * 100).toFixed(1)}%` : "—", "success"],
+      ["Late arrivals", sum("late"), "warning"],
+      ["Leave days", sum("on_leave"), "info"],
+      ["Absences", sum("absent"), "error"],
     ];
-    tally.setAttribute("aria-label", `Your attendance, ${MONTHS[state.activeMonth]} ${year}`);
+    tally.setAttribute("aria-label", `School attendance, ${MONTHS[state.activeMonth]} ${year}, closed days`);
     tally.innerHTML = rows.map(([label, value, tone]) =>
       `<li><span class="ds-dot d-${tone}"></span><span>${label}</span><strong>${value}</strong></li>`).join("");
   }
@@ -262,8 +267,9 @@
   }
 
   // ── Event card (handoff §8.9) ──
+  const canChange = (ev) => ev.mine || canSchool; // own events always; school events for HR
   function actionsHtml(ev) {
-    if (!ev.mine) return "";
+    if (!canChange(ev)) return "";
     return `<span class="cal-ev-actions"><button type="button" class="cal-mini-btn" aria-label="Edit ${esc(ev.title)}" data-cal-edit="${ev.uid}"><i class="ti ti-pencil" aria-hidden="true"></i></button><button type="button" class="cal-mini-btn" aria-label="Delete ${esc(ev.title)}" data-cal-delete="${ev.uid}"><i class="ti ti-trash" aria-hidden="true"></i></button></span>`;
   }
   const chipHtml = (m) => `<span class="cal-chip"><i class="ti ti-${m.icon}" aria-hidden="true"></i>${esc(m.label)}</span>`;
@@ -275,7 +281,8 @@
       + `${ev.description ? `<p class="cal-ev-desc">${esc(ev.description)}</p>` : ""}${actionsHtml(ev)}</article>`;
   }
 
-  // ── Selected-day panel (handoff §8.9 and §10.3, for one person) ──
+  // ── Selected-day panel (handoff §8.9 and §10.3, AttendanceDayPanel, for the whole school) ──
+  const badge = (n, label, tone) => (n ? `<span class="ds-badge s-sm${tone ? ` v-${tone}` : ""}">${n} ${label}</span>` : "");
   function attendanceHtml(k) {
     const d = parse(k);
     const rec = data.attendance[k];
@@ -286,16 +293,20 @@
       body = `<p class="cal-att-line">No work · ${esc(noWorkEvent(k).title)}</p>`;
     } else if (!rec) {
       body = '<p class="cal-att-line">No time logs for this day.</p>';
-    } else if (rec.status === "leave") {
-      body = `<span class="ds-status v-info"><span class="ds-dot d-info"></span>On leave · ${esc(rec.label)}</span>`;
-    } else if (rec.status === "absent") {
-      body = '<span class="ds-status v-error"><span class="ds-dot d-error"></span>Absent</span><p class="cal-att-line">No time logs and no leave filed.</p>';
     } else {
-      const tone = rec.status === "late" ? "warning" : "success";
-      body = `<span class="ds-status v-${tone}"><span class="ds-dot d-${tone}"></span>${esc(rec.label)}</span>`
-        + `<dl class="cal-att-dl"><div><dt>Time in</dt><dd>${esc(rec.time_in)}</dd></div><div><dt>Time out</dt><dd>${rec.time_out ? esc(rec.time_out) : "Still in"}</dd></div><div><dt>Hours</dt><dd>${rec.hours} h</dd></div></dl>`;
+      const expected = rec.staff - rec.on_leave;
+      const rate = expected ? `${((rec.present / expected) * 100).toFixed(1)}%` : "";
+      const open = rec.departments.filter((dept) => !dept.complete);
+      const done = rec.departments.length - open.length;
+      const list = open.length
+        ? `<ul class="cal-att-depts">${open.map((dept) => `<li><span>${esc(dept.name)}</span><span class="ds-status v-warning"><span class="ds-dot d-warning"></span>${dept.present} of ${dept.staff - dept.on_leave} in</span></li>`).join("")}</ul>`
+        : "";
+      body = `<p class="cal-att-line"><strong>${rec.present} of ${plural(rec.staff, "employee")} present</strong>${rate ? ` · ${rate}` : ""}</p>`
+        + '<p class="cal-att-line">Late arrivals count as present.</p>'
+        + `<div class="fms-row">${badge(rec.present - rec.late, "on time", "success")}${badge(rec.late, "late", "warning")}${badge(rec.absent, "absent", "error")}${badge(rec.on_leave, "on leave", "info")}${badge(rec.not_timed_in, "not timed in", "")}</div>`
+        + `<p class="cal-att-line">${done} of ${plural(rec.departments.length, "department")} complete</p>${list}`;
     }
-    return `<section class="cal-att" aria-label="Your attendance"><h4 class="cal-side-title">Your attendance</h4>${body}</section>`;
+    return `<section class="cal-att" aria-label="School attendance"><h4 class="cal-side-title">School attendance</h4>${body}</section>`;
   }
 
   function renderDay() {
@@ -384,31 +395,69 @@
     flash.hidden = false;
   }
 
-  // ── Own events: add, edit, delete (handoff §8.11–8.12, "Just me") ──
-  const findMine = (uid) => state.mine.find((ev) => `mine-${ev.event_id}` === uid);
+  // ── Events: add, edit, delete (handoff §8.11–8.12). School events for HR; your own for you. ──
+  const findEvent = (uid) => (uid.startsWith("mine-")
+    ? state.mine.find((ev) => `mine-${ev.event_id}` === uid)
+    : state.school.find((ev) => `school-${ev.event_id}` === uid));
   const eventDialog = document.getElementById("cal-event-dialog");
   const eventForm = eventDialog.querySelector("[data-cal-event-form]");
   const field = (name) => eventForm.querySelector(`[data-cal-field="${name}"]`);
   const formError = eventForm.querySelector("[data-cal-event-error]");
-  let editing = null;
+  const kindField = eventForm.querySelector("[data-cal-kind-field]");
+  const typeField = eventForm.querySelector("[data-cal-type-field]");
+  const typeGrid = eventForm.querySelector("[data-cal-type-grid]");
+  const headerIcon = eventDialog.querySelector("[data-cal-event-icon]");
+  let editing = null; // the event being edited, or null when creating
+  let kind = canSchool ? "school" : "mine";
+  let eventType = "holiday";
 
   eventForm.querySelectorAll('input[type="date"]').forEach((input) => { input.min = bounds.min; input.max = bounds.max; });
-  const personalIcon = eventDialog.querySelector("[data-cal-event-icon]");
+
+  // The header and the parts of the form that depend on where the event goes.
+  function paintEventForm() {
+    const school = kind === "school";
+    const m = meta(school ? eventType : PERSONAL);
+    headerIcon.setAttribute("style", evStyle(m));
+    headerIcon.innerHTML = `<i class="ti ti-${m.icon}"></i>`;
+    const heading = school ? (editing ? "Edit Event" : "Add New Event") : (editing ? "Edit My Event" : "Add My Event");
+    eventDialog.querySelector("[data-cal-event-heading]").textContent = heading;
+    eventDialog.querySelector("[data-cal-event-sub]").textContent = school ? `S.Y. ${data.school_year}` : "Only you can see this";
+    eventDialog.querySelector("[data-cal-event-save]").textContent = editing ? "Save Changes" : "Add Event";
+    field("title").placeholder = school ? "e.g. Independence Day" : "e.g. Dentist appointment";
+    kindField.hidden = Boolean(editing) || !canSchool; // an event never moves between calendars
+    kindField.querySelectorAll("[data-cal-kind]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.calKind === kind)));
+    typeField.hidden = !school;
+    typeGrid.innerHTML = schoolTypes().map((t) => `<button type="button" class="cal-type-btn" style="${evStyle(t)}" aria-pressed="${t.value === eventType}" data-cal-type="${t.value}"><i class="ti ti-${t.icon}" aria-hidden="true"></i>${esc(t.label)}</button>`).join("");
+  }
 
   function openEventDialog(ev) {
     editing = ev ?? null;
-    eventDialog.querySelector("[data-cal-event-heading]").textContent = ev ? "Edit My Event" : "Add My Event";
-    eventDialog.querySelector("[data-cal-event-save]").textContent = ev ? "Save Changes" : "Add Event";
-    personalIcon.setAttribute("style", evStyle(meta(PERSONAL)));
+    kind = ev ? (ev.mine ? "mine" : "school") : (canSchool ? "school" : "mine");
+    eventType = ev && !ev.mine ? ev.event_type : "holiday";
     const start = state.selectedDay && state.selectedDay >= bounds.min && state.selectedDay <= bounds.max ? state.selectedDay : today;
     field("title").value = ev?.title ?? "";
     field("start_date").value = ev?.start_date ?? start;
     field("end_date").value = ev?.end_date ?? start;
     field("description").value = ev?.description ?? "";
     formError.hidden = true;
+    paintEventForm();
     eventDialog.showModal();
     field("title").focus();
   }
+
+  kindField.addEventListener("click", (e) => {
+    const option = e.target.closest("[data-cal-kind]");
+    if (!option) return;
+    kind = option.dataset.calKind;
+    paintEventForm();
+  });
+  typeGrid.addEventListener("click", (e) => {
+    const option = e.target.closest("[data-cal-type]");
+    if (!option) return;
+    eventType = option.dataset.calType;
+    paintEventForm();
+    typeGrid.querySelector(`[data-cal-type="${eventType}"]`).focus();
+  });
 
   field("start_date").addEventListener("change", () => {
     const end = field("end_date");
@@ -441,9 +490,11 @@
       formError.hidden = false;
       return;
     }
-    if (editing) Object.assign(editing, v);
-    else state.mine.push({ event_id: state.nextId++, ...v });
-    if (!state.showMine) { state.showMine = true; store.set(toggleKey("showMine"), "1"); } // a new own event shouldn't vanish
+    const school = kind === "school";
+    if (school) v.event_type = eventType;
+    if (editing) Object.assign(findEvent(editing.uid), v);
+    else (school ? state.school : state.mine).push({ event_id: state.nextId++, ...v });
+    if (!school && !state.showMine) { state.showMine = true; store.set(toggleKey("showMine"), "1"); } // a new own event shouldn't vanish
     eventDialog.close();
     say(editing ? "Event updated." : "Event created.");
     editing = null;
@@ -454,14 +505,16 @@
   let toDelete = null;
   function openDelete(ev) {
     toDelete = ev;
-    const m = meta(PERSONAL);
+    const m = meta(ev.event_type);
     const chip = deleteDialog.querySelector("[data-cal-delete-chip]");
     chip.setAttribute("style", evStyle(m));
     chip.innerHTML = `<i class="ti ti-${m.icon}" aria-hidden="true"></i>${esc(ev.title)}`;
     deleteDialog.showModal();
   }
   deleteDialog.querySelector("[data-cal-delete-confirm]").addEventListener("click", () => {
-    state.mine = state.mine.filter((ev) => ev !== toDelete);
+    const original = findEvent(toDelete.uid);
+    if (toDelete.mine) state.mine = state.mine.filter((ev) => ev !== original);
+    else state.school = state.school.filter((ev) => ev !== original);
     toDelete = null;
     deleteDialog.close();
     say("Event deleted.");
@@ -514,14 +567,14 @@
     renderAll({ animate: true });
   });
 
-  // ── CSV export: school events only (handoff §8.14) ──
+  // ── CSV export: school events only, edits included (handoff §8.14) ──
   const quoteCSV = (v) => {
     const s = v == null ? "" : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   function exportCSV() {
     const header = ["Date", "End Date", "Title", "Type", "Description", "School Year"];
-    const rows = [...data.events].sort((a, b) => a.start_date.localeCompare(b.start_date))
+    const rows = [...state.school].sort((a, b) => a.start_date.localeCompare(b.start_date))
       .map((ev) => [ev.start_date, ev.end_date, ev.title, meta(ev.event_type).label, ev.description ?? "", data.school_year]);
     const csv = [header, ...rows].map((r) => r.map(quoteCSV).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob(["﻿", csv], { type: "text/csv;charset=utf-8;" })); // BOM so Excel reads UTF-8
@@ -539,7 +592,7 @@
     return `<div class="calp-head"><div><div class="calp-school">${esc(data.school_name)}</div><div class="calp-sub">Academic Calendar — S.Y. ${esc(data.school_year)}</div></div><div class="calp-sub">Generated on ${made}</div></div>`;
   }
   const printLegend = () => `<div class="calp-legend">${schoolTypes().map((t) => `<span class="calp-type" style="${evStyle(t)}">${esc(t.label)}</span>`).join("")}</div>`;
-  const startsIn = (m) => data.events.filter((ev) => { const s = parse(ev.start_date); return s.getMonth() === m && s.getFullYear() === yearOf(m); });
+  const startsIn = (m) => state.school.filter((ev) => { const s = parse(ev.start_date); return s.getMonth() === m && s.getFullYear() === yearOf(m); });
   function eventTable(evs) {
     if (!evs.length) return '<p class="calp-none">No events this month</p>';
     return `<table><thead><tr><th>Date</th><th>Event</th><th>Type</th><th>Description</th></tr></thead><tbody>${evs.map((ev) => {
@@ -554,7 +607,7 @@
     }).join("")}${printLegend()}</div>`;
   }
   function printSheets() {
-    const map = buildEventMap(data.events.map((ev) => ({ ...ev, uid: ev.event_id })));
+    const map = buildEventMap(state.school.map((ev) => ({ ...ev, uid: ev.event_id })));
     return `<div class="calp">${SY_ORDER.map((m, i) => {
       const year = yearOf(m);
       const first = new Date(year, m, 1).getDay();
@@ -606,9 +659,9 @@
     const pill = t.closest("[data-cal-month]");
     if (pill) return goToMonth(Number(pill.dataset.calMonth));
     const edit = t.closest("[data-cal-edit]");
-    if (edit) return openEventDialog(findMine(edit.dataset.calEdit));
+    if (edit) return openEventDialog(items().find((ev) => ev.uid === edit.dataset.calEdit));
     const del = t.closest("[data-cal-delete]");
-    if (del) return openDelete(findMine(del.dataset.calDelete));
+    if (del) return openDelete(items().find((ev) => ev.uid === del.dataset.calDelete));
     const day = t.closest(".cal-day");
     if (day) return selectDay(day.dataset.date);
     if (t.closest("[data-cal-close-day]")) {

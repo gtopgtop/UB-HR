@@ -1,5 +1,5 @@
-// Attendance page: the time clock, the QR scan stand-in and the leave form's live balance check.
-// Prototype only: nothing is saved, and a reload resets the page.
+// Attendance page, HR officer view: the reminder button, the attendance export (usability task 14)
+// and step 2 of the leave approval chain. Prototype only: nothing is saved, and a reload resets the page.
 (() => {
   const flash = document.querySelector("[data-flash]");
   const say = (text) => {
@@ -7,128 +7,97 @@
     flash.hidden = false;
   };
   document.querySelector("[data-flash-close]").addEventListener("click", () => { flash.hidden = true; });
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-  const clockTime = () => new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-
-  // ── Time clock: each action logs the opposite of the current state. ──
-  const clock = document.querySelector("[data-clock]");
-  const action = clock.querySelector("[data-clock-action]");
-
-  function punch(method, station) {
-    const goingOut = clock.dataset.state === "in";
-    const direction = goingOut ? "Out" : "In";
-    const time = clockTime();
-    clock.dataset.state = goingOut ? "out" : "in";
-
-    const item = document.createElement("li");
-    item.innerHTML = `<i class="ti ti-${goingOut ? "logout" : "login"}" aria-hidden="true"></i>`;
-    item.append(`${direction} · ${time} · ${method}`);
-    clock.querySelector("[data-clock-log]").append(item);
-
-    clock.querySelector("[data-clock-status]").textContent = `Timed ${direction.toLowerCase()} at ${time}`;
-    action.querySelector(".ti").className = `ti ti-${goingOut ? "login" : "logout"}`;
-    action.querySelector("span").textContent = goingOut ? "Time in" : "Time out";
-    say(`Timed ${direction.toLowerCase()} at ${time}${station ? ` by QR at ${station}` : ""}.`);
-  }
-
-  action.addEventListener("click", () => punch("Web"));
-  const scan = document.querySelector("[data-qr-scan]");
-  scan.addEventListener("click", () => {
-    scan.closest("dialog").close();
-    punch("QR", scan.dataset.station);
+  // ── Remind the people who have not timed in yet ──
+  const remind = document.querySelector("[data-remind]");
+  remind.addEventListener("click", () => {
+    remind.disabled = true;
+    say(`Reminder sent to ${plural(Number(remind.dataset.remind), "employee")} who have not timed in yet.`);
   });
 
-  // ── Leave form ──
-  const form = document.querySelector("[data-leave-form]");
-  const type = form.querySelector("[data-leave-type]");
-  const start = form.querySelector("[data-leave-start]");
-  const end = form.querySelector("[data-leave-end]");
-  const half = form.querySelector("[data-leave-half]");
-  const check = form.querySelector("[data-leave-check]");
-  const error = form.querySelector("[data-leave-error]");
-  const attachment = form.querySelector("[data-leave-attachment]");
+  // ── Export: one row per working day, for the school or one department ──
+  const data = JSON.parse(document.getElementById("calendar-data").textContent);
+  const exportDialog = document.getElementById("export-dialog");
+  const deptField = exportDialog.querySelector("[data-export-department-field]");
+  const monthField = exportDialog.querySelector("[data-export-month]");
+  // A department row's export button opens the dialog with that department picked.
+  document.querySelectorAll("[data-export-department]").forEach((btn) => {
+    btn.addEventListener("click", () => { deptField.value = btn.dataset.exportDepartment; });
+  });
+  document.querySelector('[data-dialog-open="export-dialog"]:not([data-export-department])')
+    .addEventListener("click", () => { deptField.value = ""; });
 
-  const toDate = (value) => (value ? new Date(`${value}T00:00`) : null);
-  const short = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const quoteCSV = (v) => {
+    const s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  exportDialog.querySelector("[data-export-form]").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const dept = deptField.value;
+    const month = String(monthField.value).padStart(2, "0");
+    const header = ["Date", "Department", "Staff", "Present", "Late", "Absent", "On leave", "Not timed in"];
+    const rows = Object.entries(data.attendance)
+      .filter(([k]) => k.startsWith(`2026-${month}-`))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, rec]) => {
+        const r = dept ? rec.departments.find((d) => d.name === dept) : rec;
+        return [k, dept || "Whole school", r.staff, r.present, r.late, r.absent, r.on_leave, r.not_timed_in];
+      });
+    const csv = [header, ...rows].map((r) => r.map(quoteCSV).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob(["﻿", csv], { type: "text/csv;charset=utf-8;" })); // BOM so Excel reads UTF-8
+    const a = document.createElement("a");
+    const label = monthField.selectedOptions[0].textContent;
+    a.href = url;
+    a.download = `attendance-${(dept || "whole-school").toLowerCase().replace(/\s+/g, "-")}-2026-${month}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    exportDialog.close();
+    say(`Downloaded ${label} attendance for ${dept || "the whole school"}: ${plural(rows.length, "working day")}.`);
+  });
 
-  function workingDays(from, to) {
-    let days = 0;
-    for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-      if (d.getDay() !== 0 && d.getDay() !== 6) days += 1;
-    }
-    return days;
+  // ── Leave, step 2: approve, or decline with a remark ──
+  const left = document.querySelector("[data-leave-left]");
+  const count = document.querySelector("[data-leave-count]");
+  function decide(row, approved, remark) {
+    const name = row.querySelector(".ds-cell-strong").textContent;
+    const step = row.querySelector("[data-hr-step]");
+    step.className = approved ? "is-done" : "is-declined";
+    step.innerHTML = `<i class="ti ti-${approved ? "check" : "x"}" aria-hidden="true"></i>HR<span class="ds-sr-only">: ${approved ? "approved" : "declined"}</span>`;
+    const tone = approved ? "success" : "error";
+    row.querySelector("[data-leave-status]").innerHTML = `<span class="ds-status v-${tone}"><span class="ds-dot d-${tone}"></span>${approved ? "Approved" : "Declined"}</span>`;
+    row.querySelector("[data-leave-note]").textContent = approved ? "HR: Approved today." : `HR: ${remark}`;
+    row.querySelector("[data-leave-actions]").remove();
+    const n = Number(left.textContent) - 1;
+    left.textContent = n;
+    count.textContent = n;
+    say(`${approved ? "Approved" : "Declined"} leave for ${name}. They have been notified.`);
   }
 
-  // Returns {days, from, to, problem}. `problem` is the message to show, if any.
-  function assess() {
-    const option = type.selectedOptions[0];
-    const left = Number(option.dataset.left);
-    const from = toDate(start.value);
-    const to = toDate(end.value) || from;
-    if (!from) return { problem: "Pick the first day of your leave." };
-    if (to < from) return { problem: "The last day is before the first day." };
-    let days = workingDays(from, to);
-    if (half.checked) {
-      if (days !== 1) return { problem: "Half day applies to a single working day." };
-      days = 0.5;
-    }
-    if (days === 0) return { problem: "Those dates fall on rest days only." };
-    if (days > left) return { days, from, to, problem: `This uses ${days} days, but you have ${left} ${option.dataset.name.toLowerCase()} days left.` };
-    return { days, from, to, left };
-  }
-
-  function showError(message) {
-    error.hidden = !message;
-    error.querySelector("span").textContent = message || "";
-    [start, end].forEach((input) => {
-      input.classList.toggle("is-invalid", Boolean(message));
-      input.setAttribute("aria-invalid", String(Boolean(message)));
+  const declineDialog = document.getElementById("decline-dialog");
+  const remark = declineDialog.querySelector("[data-decline-remark]");
+  const remarkError = declineDialog.querySelector("[data-decline-error]");
+  let declining = null;
+  document.querySelectorAll("[data-leave-row]").forEach((row) => {
+    row.querySelector("[data-leave-approve]")?.addEventListener("click", () => decide(row, true));
+    row.querySelector("[data-leave-decline]")?.addEventListener("click", () => {
+      declining = row;
+      remark.value = "";
+      remarkError.hidden = true;
+      remark.removeAttribute("aria-invalid");
     });
-  }
-
-  function update() {
-    attachment.hidden = type.selectedOptions[0].dataset.attachment !== "true";
-    if (!start.value) { check.textContent = "Pick the dates to see how many days this uses."; return; }
-    const result = assess();
-    check.classList.toggle("is-over", Boolean(result.problem));
-    if (result.problem) { check.textContent = result.problem; return; }
-    showError("");
-    check.textContent = `${result.days} working day${result.days === 1 ? "" : "s"} · ${result.left} left now · ${result.left - result.days} left after approval`;
-  }
-  [type, start, end, half].forEach((input) => input.addEventListener("input", update));
-
-  form.addEventListener("submit", (e) => {
-    const result = assess();
-    if (result.problem) {
-      e.preventDefault();
-      showError(result.problem);
-      start.focus();
+  });
+  declineDialog.querySelector("[data-decline-form]").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = remark.value.trim();
+    if (!text) {
+      remarkError.hidden = false;
+      remark.setAttribute("aria-invalid", "true");
+      remark.focus();
       return;
     }
-    const option = type.selectedOptions[0];
-    const dates = result.from.getTime() === result.to.getTime() ? short(result.from) : `${short(result.from)}–${short(result.to)}`;
-
-    // Hold the days on the balance card.
-    const pending = document.querySelector(`[data-pending="${option.value}"]`);
-    pending.dataset.days = Number(pending.dataset.days) + result.days;
-    pending.textContent = `${pending.dataset.days} days pending approval`;
-
-    // Add the request to the top of the history.
-    const row = document.createElement("tr");
-    row.innerHTML = `<td><div class="ds-cell-strong"></div><div class="ds-cell-sub"></div></td><td class="a-right"></td><td>Today</td>
-      <td><ol class="fms-approval"><li class="is-pending"><i class="ti ti-hourglass" aria-hidden="true"></i>Department head<span class="ds-sr-only">: waiting for a decision</span></li><li class="is-waiting"><i class="ti ti-clock" aria-hidden="true"></i>HR<span class="ds-sr-only">: not reached yet</span></li></ol></td>
-      <td><span class="ds-status v-warning"><span class="ds-dot d-warning"></span>Pending</span></td><td class="fms-remarks">—</td>`;
-    row.querySelector(".ds-cell-strong").textContent = option.dataset.name;
-    row.querySelector(".ds-cell-sub").textContent = dates;
-    row.children[1].textContent = result.days;
-    document.querySelector("[data-leave-rows]").prepend(row);
-    const count = document.querySelector("[data-leave-count]");
-    count.textContent = Number(count.textContent) + 1;
-
-    say(`Leave request sent to your department head: ${option.dataset.name}, ${dates}. ${result.days} day${result.days === 1 ? " is" : "s are"} on hold until a decision.`);
-    form.reset();
-    showError("");
-    update();
+    declineDialog.close();
+    decide(declining, false, text);
+    declining = null;
   });
-  update();
 })();

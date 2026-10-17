@@ -1,13 +1,14 @@
 {% extends "hr/base.html" %}
 {% load static %}
-{# Attendance (plan §3 Module 2, §8.3; usability tasks 1 and 2). Data: hr/sample_data.py ATTENDANCE. #}
+{# Attendance, HR officer view (plan §3 Module 2, §5.4, §8.3; usability task 14). Data: hr/sample_data.py ATTENDANCE. #}
 
 {% block scripts %}<script src="{% static 'hr/js/attendance.js' %}" defer></script>
 <script src="{% static 'hr/js/calendar.js' %}" defer></script>{% endblock %}
 
 {% block actions %}
 <div class="ds-actions">
-  <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="leave-dialog"><i class="ti ti-calendar-plus" aria-hidden="true"></i>File leave</button>
+  <button type="button" class="ds-btn ds-btn-secondary" data-dialog-open="stations-dialog"><i class="ti ti-qrcode" aria-hidden="true"></i>Time stations</button>
+  <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="export-dialog"><i class="ti ti-table-export" aria-hidden="true"></i>Export report</button>
 </div>
 {% endblock %}
 
@@ -15,32 +16,34 @@
 <div class="ds-alert v-success" role="status" data-flash hidden><i class="ti ti-circle-check" aria-hidden="true"></i><div class="ds-alert-body" data-flash-text></div><button class="ds-alert-close" type="button" aria-label="Dismiss message" data-flash-close><i class="ti ti-x" aria-hidden="true"></i></button></div>
 
 <div class="fms-grid is-thirds">
-  <section class="ds-card ds-panel" aria-labelledby="clock-title" data-clock data-state="{{ clock.state }}">
+  <section class="ds-card ds-panel" aria-labelledby="today-title">
     <div class="ds-panel-head">
-      <div class="fms-min0"><h2 class="ds-panel-title" id="clock-title">Today</h2><p class="ds-panel-sub">Monday, October 12</p></div>
-      <span class="ds-badge v-success"><span class="ds-dot d-success"></span>{{ clock.status }}</span>
+      <div class="fms-min0"><h2 class="ds-panel-title" id="today-title">Today</h2><p class="ds-panel-sub">As of {{ today.as_of }} · {{ today.complete }} of {{ today.departments|length }} departments complete</p></div>
+      <span class="ds-badge v-success"><span class="ds-dot d-success"></span>{{ today.present }} of {{ today.expected }} in</span>
     </div>
     <div class="ds-panel-body ds-stack">
-      <div>
-        <div class="fms-clock-status" data-clock-status>Timed in at {{ clock.time_in }}</div>
-        <ul class="fms-clock-log" data-clock-log>
-          {% for log in clock.logs %}<li><i class="ti ti-login" aria-hidden="true"></i>{{ log.direction }} · {{ log.time }} · {{ log.method }}</li>{% endfor %}
-        </ul>
+      <div class="fms-meters">
+        {% for item in today.meters %}
+        <div class="fms-meter">
+          <div class="fms-meter-head"><span>{{ item.label }}</span><span class="fms-meter-value"><strong>{{ item.value }}</strong> of {{ item.total }}</span></div>
+          <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ item.pct }}%"></i></div>
+        </div>
+        {% endfor %}
       </div>
       <div class="fms-row">
-        <button type="button" class="ds-btn ds-btn-primary" data-clock-action><i class="ti ti-logout" aria-hidden="true"></i><span>Time out</span></button>
-        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-open="qr-dialog"><i class="ti ti-qrcode" aria-hidden="true"></i>Scan QR</button>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-remind="{{ today.not_timed_in }}"><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind {{ today.not_timed_in }} not timed in</button>
+        <span class="fms-caption">{{ today.on_leave }} on leave today</span>
       </div>
     </div>
   </section>
 
-  <section class="ds-card ds-panel" aria-labelledby="hours-title">
-    <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="hours-title">Hours worked</h2><p class="ds-panel-sub">Against expected hours</p></div></div>
+  <section class="ds-card ds-panel" aria-labelledby="month-title">
+    <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="month-title">October so far</h2><p class="ds-panel-sub">Closed working days, not counting today</p></div></div>
     <div class="ds-panel-body">
       <div class="fms-meters">
-        {% for item in hours %}
+        {% for item in month %}
         <div class="fms-meter">
-          <div class="fms-meter-head"><span>{{ item.label }}</span><span class="fms-meter-value"><strong>{{ item.value }} h</strong> of {{ item.total }} h</span></div>
+          <div class="fms-meter-head"><span>{{ item.label }}</span><span class="fms-meter-value"><strong>{{ item.shown }}</strong></span></div>
           <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ item.pct }}%"></i></div>
           <div class="fms-caption">{{ item.note }}</div>
         </div>
@@ -49,15 +52,15 @@
     </div>
   </section>
 
-  <section class="ds-card ds-panel" aria-labelledby="balances-title">
-    <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="balances-title">Leave balances</h2><p class="ds-panel-sub">School year 2026–2027</p></div></div>
+  <section class="ds-card ds-panel" aria-labelledby="usage-title">
+    <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="usage-title">Leave used</h2><p class="ds-panel-sub">School year 2026–2027 · all {{ school.headcount }} employees</p></div></div>
     <div class="ds-panel-body">
       <div class="fms-meters">
-        {% for leave in leave_types %}
+        {% for leave in leave_usage %}
         <div class="fms-meter">
-          <div class="fms-meter-head"><span>{{ leave.type }}</span><span class="fms-meter-value"><strong>{{ leave.value }}</strong> of {{ leave.total }} days left</span></div>
+          <div class="fms-meter-head"><span>{{ leave.type }}</span><span class="fms-meter-value"><strong>{{ leave.value }}</strong> of {{ leave.total }} days</span></div>
           <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ leave.pct }}%"></i></div>
-          <div class="fms-caption" data-pending="{{ leave.code }}" data-days="{{ leave.pending }}">{% if leave.pending %}{{ leave.pending }} days pending approval{% else %}Nothing pending{% endif %}</div>
+          <div class="fms-caption">{% if leave.pending %}{{ leave.pending }} day{{ leave.pending|pluralize }} waiting for HR{% else %}Nothing waiting for HR{% endif %}</div>
         </div>
         {% endfor %}
       </div>
@@ -67,14 +70,16 @@
 
 <div>
   <div class="ds-tabs" role="tablist" aria-label="Attendance sections">
-    <button class="ds-tab" type="button" role="tab" id="tab-calendar" aria-controls="panel-calendar" aria-selected="true" data-hash="calendar"><i class="ti ti-calendar" aria-hidden="true"></i>Calendar and time record</button>
-    <button class="ds-tab" type="button" role="tab" id="tab-schedule" aria-controls="panel-schedule" aria-selected="false" tabindex="-1" data-hash="schedule"><i class="ti ti-clock" aria-hidden="true"></i>Weekly schedule</button>
-    <button class="ds-tab" type="button" role="tab" id="tab-leave" aria-controls="panel-leave" aria-selected="false" tabindex="-1" data-hash="leave"><i class="ti ti-clipboard-list" aria-hidden="true"></i>Leave history <span class="ds-tab-count" data-leave-count>{{ leave_history|length }}</span></button>
+    <button class="ds-tab" type="button" role="tab" id="tab-calendar" aria-controls="panel-calendar" aria-selected="true" data-hash="calendar"><i class="ti ti-calendar" aria-hidden="true"></i>Calendar and attendance</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-departments" aria-controls="panel-departments" aria-selected="false" tabindex="-1" data-hash="departments"><i class="ti ti-building-community" aria-hidden="true"></i>Departments</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-watch" aria-controls="panel-watch" aria-selected="false" tabindex="-1" data-hash="watch-list"><i class="ti ti-alert-triangle" aria-hidden="true"></i>Watch list <span class="ds-tab-count">{{ watch_list|length }}</span></button>
+    <button class="ds-tab" type="button" role="tab" id="tab-leave" aria-controls="panel-leave" aria-selected="false" tabindex="-1" data-hash="leave"><i class="ti ti-clipboard-list" aria-hidden="true"></i>Leave requests <span class="ds-tab-count" data-leave-count>{{ leave_with_hr }}</span></button>
   </div>
 
-  {# ── Calendar and time record: the Academic Calendar handoff's layout (§1, §7.4, §8, §12) on this
-     project's tokens. School events, your own events, and your daily time record as its attendance
-     layer. Rendered by calendar.js from the "calendar-data" JSON below. ── #}
+  {# ── Calendar and attendance: the Academic Calendar handoff's layout (§1, §7.4, §8, §12) on this
+     project's tokens. School events, which HR keeps, your own events, and school-wide daily
+     attendance as its attendance layer (§10, departments in place of sections). Rendered by
+     calendar.js from the "calendar-data" JSON below. ── #}
   <div class="fms-tab-panel" role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar" tabindex="0">
     {{ calendar|json_script:"calendar-data" }}
     <div class="cal" data-calendar>
@@ -105,13 +110,13 @@
           </div>
 
           <div data-cal-grid>
-            <noscript><p class="fms-muted">The calendar needs JavaScript. Your attendance summary is below.</p></noscript>
+            <noscript><p class="fms-muted">The calendar needs JavaScript. This month's school attendance is below.</p></noscript>
           </div>
 
           <div class="cal-legend" data-cal-legend></div>
 
-          <ul class="fms-tally" aria-label="Your attendance, {{ dtr.title }}" data-cal-tally>
-            {% for item in dtr.summary %}<li><span class="ds-dot d-{{ item.tone }}"></span><span>{{ item.label }}</span><strong>{{ item.value }}</strong></li>{% endfor %}
+          <ul class="fms-tally" aria-label="School attendance, October 2026, closed days" data-cal-tally>
+            {% for item in tally %}<li><span class="ds-dot d-{{ item.tone }}"></span><span>{{ item.label }}</span><strong>{{ item.value }}</strong></li>{% endfor %}
           </ul>
 
           <div class="cal-card cal-print">
@@ -151,46 +156,87 @@
     </div>
   </div>
 
-  {# ── Weekly schedule ── #}
-  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-schedule" aria-labelledby="tab-schedule" tabindex="0" hidden>
-    <p class="fms-muted">Assigned by your department head · 1st semester, AY 2026–2027</p>
-    <div class="fms-grid is-thirds">
-      {% for day, items in schedule %}
-      <section class="ds-card ds-panel" aria-labelledby="day-{{ forloop.counter }}">
-        <div class="ds-panel-head"><div><h2 class="ds-panel-title" id="day-{{ forloop.counter }}">{{ day }}</h2><p class="ds-panel-sub">{% if items %}{{ items|length }} item{{ items|length|pluralize }}{% else %}Rest day{% endif %}</p></div>{% if forloop.first %}<span class="ds-badge v-brand s-sm">Today</span>{% endif %}</div>
-        <div class="ds-panel-body">
-          {% if items %}
-          <ul class="fms-schedule">
-            {% for item in items %}<li><span class="fms-schedule-time">{{ item.time }}</span><span class="fms-min0"><span class="fms-schedule-title">{{ item.title }}</span><span class="fms-caption">{{ item.place }}</span></span></li>{% endfor %}
-          </ul>
-          {% else %}
-          <p class="fms-muted">No classes or duties.</p>
-          {% endif %}
-        </div>
-      </section>
-      {% endfor %}
-    </div>
+  {# ── Departments ── #}
+  <div class="fms-tab-panel" role="tabpanel" id="panel-departments" aria-labelledby="tab-departments" tabindex="0" hidden>
+    <section class="ds-card ds-panel p-none" aria-labelledby="departments-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="departments-title">Departments</h2><p class="ds-panel-sub">Today as of {{ today.as_of }}, and October's closed days</p></div>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table fms-num">
+          <thead><tr><th scope="col">Department</th><th scope="col" class="a-right">Staff</th><th scope="col" class="a-right">Present</th><th scope="col" class="a-right">Late</th><th scope="col" class="a-right">On leave</th><th scope="col">Not timed in</th><th scope="col" class="a-right">October rate</th><th scope="col" class="a-right"><span class="ds-sr-only">Export</span></th></tr></thead>
+          <tbody>
+            {% for dept in departments %}
+            <tr>
+              <th scope="row" class="ds-cell-strong">{{ dept.name }}</th>
+              <td class="a-right">{{ dept.headcount }}</td>
+              <td class="a-right">{{ dept.present }}</td>
+              <td class="a-right">{{ dept.late }}</td>
+              <td class="a-right">{{ dept.on_leave }}</td>
+              <td>{% if dept.not_timed_in %}<span class="ds-status v-warning"><span class="ds-dot d-warning"></span>{{ dept.not_timed_in }}</span>{% else %}<span class="ds-status v-success"><span class="ds-dot d-success"></span>Complete</span>{% endif %}</td>
+              <td class="a-right ds-cell-strong">{{ dept.month.rate }}</td>
+              <td class="a-right"><button type="button" class="ds-row-action" aria-label="Export {{ dept.name }} attendance" data-dialog-open="export-dialog" data-export-department="{{ dept.name }}"><i class="ti ti-download" aria-hidden="true"></i></button></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr><th scope="row">Whole school</th><td class="a-right">{{ school.headcount }}</td><td class="a-right">{{ school.present }}</td><td class="a-right">{{ school.late }}</td><td class="a-right">{{ school.on_leave }}</td><td>{{ today.not_timed_in }}</td><td class="a-right">{{ month.0.shown }}</td><td></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
   </div>
 
-  {# ── Leave history ── #}
+  {# ── Watch list: policy alerts (plan §5.4) ── #}
+  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-watch" aria-labelledby="tab-watch" tabindex="0" hidden>
+    <div class="ds-alert v-info" role="status"><i class="ti ti-info-circle" aria-hidden="true"></i><div class="ds-alert-body">These rules notify the employee first. Department heads are told when a pattern repeats or an absence has no leave filed. HR Admin sets the thresholds.</div></div>
+    <section class="ds-card ds-panel p-none" aria-labelledby="watch-title">
+      <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="watch-title">Attendance watch list</h2><p class="ds-panel-sub">October 2026 · {{ watch_list|length }} open</p></div></div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Employee</th><th scope="col">Rule</th><th scope="col">Detail</th><th scope="col">Notified</th><th scope="col" class="a-right"><span class="ds-sr-only">Action</span></th></tr></thead>
+          <tbody>
+            {% for item in watch_list %}
+            <tr>
+              <td><div class="ds-cell-strong">{{ item.name }}</div><div class="ds-cell-sub">{{ item.department }}</div></td>
+              <td><span class="ds-status v-{{ item.tone }}"><span class="ds-dot d-{{ item.tone }}"></span>{{ item.rule }}</span></td>
+              <td>{{ item.detail }}</td>
+              <td>{{ item.notified }}</td>
+              <td class="a-right"><a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:messages' %}" aria-label="Message {{ item.name }}">Message</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  {# ── Leave requests ── #}
   <div class="fms-tab-panel" role="tabpanel" id="panel-leave" aria-labelledby="tab-leave" tabindex="0" hidden>
-    <section class="ds-card ds-panel p-none" aria-labelledby="history-title">
+    <section class="ds-card ds-panel p-none" aria-labelledby="requests-title">
       <div class="ds-panel-head">
-        <div class="fms-min0"><h2 class="ds-panel-title" id="history-title">Leave history</h2><p class="ds-panel-sub">Department head approves first, then HR</p></div>
-        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-dialog-open="leave-dialog"><i class="ti ti-plus" aria-hidden="true"></i>File leave</button>
+        <div class="fms-min0"><h2 class="ds-panel-title" id="requests-title">Leave requests</h2><p class="ds-panel-sub">The department head approves first, then HR · <span data-leave-left>{{ leave_with_hr }}</span> with HR</p></div>
       </div>
       <div class="ds-table-wrap">
         <table class="ds-table">
-          <thead><tr><th scope="col">Leave</th><th scope="col" class="a-right">Days</th><th scope="col">Filed</th><th scope="col">Approval</th><th scope="col">Status</th><th scope="col">Remarks</th></tr></thead>
-          <tbody data-leave-rows>
-            {% for row in leave_history %}
-            <tr>
+          <thead><tr><th scope="col">Employee</th><th scope="col">Leave</th><th scope="col" class="a-right">Days</th><th scope="col">Approval</th><th scope="col">Status</th><th scope="col">Remarks</th><th scope="col" class="a-right"><span class="ds-sr-only">Actions</span></th></tr></thead>
+          <tbody>
+            {% for row in leave_requests %}
+            <tr data-leave-row>
+              <td><div class="ds-cell-strong">{{ row.name }}</div><div class="ds-cell-sub">{{ row.department }}</div></td>
               <td><div class="ds-cell-strong">{{ row.type }}</div><div class="ds-cell-sub">{{ row.dates }}</div></td>
               <td class="a-right">{{ row.days }}</td>
-              <td>{{ row.filed }}</td>
-              <td><ol class="fms-approval">{% for step in row.steps %}<li class="is-{{ step.state }}"><i class="ti ti-{{ step.icon }}" aria-hidden="true"></i>{{ step.label }}<span class="ds-sr-only">: {{ step.state_label }}</span></li>{% endfor %}</ol></td>
-              <td><span class="ds-status v-{{ row.tone }}"><span class="ds-dot d-{{ row.tone }}"></span>{{ row.status }}</span></td>
-              <td class="fms-remarks">{{ row.remarks|default:"—" }}</td>
+              <td><ol class="fms-approval">{% for step in row.steps %}<li class="is-{{ step.state }}"{% if step.label == "HR" %} data-hr-step{% endif %}><i class="ti ti-{{ step.icon }}" aria-hidden="true"></i>{{ step.label }}<span class="ds-sr-only">: {{ step.state_label }}</span></li>{% endfor %}</ol></td>
+              <td data-leave-status><span class="ds-status{% if row.tone %} v-{{ row.tone }}{% endif %}"><span class="ds-dot{% if row.tone %} d-{{ row.tone }}{% endif %}"></span>{{ row.status }}</span></td>
+              <td class="fms-remarks" data-leave-note>{{ row.note|default:"—" }}</td>
+              <td class="a-right">
+                {% if row.actionable %}
+                <div class="fms-row fms-end" data-leave-actions>
+                  <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-leave-decline data-dialog-open="decline-dialog" aria-label="Decline leave for {{ row.name }}">Decline</button>
+                  <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-leave-approve aria-label="Approve leave for {{ row.name }}"><i class="ti ti-check" aria-hidden="true"></i>Approve</button>
+                </div>
+                {% endif %}
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -202,86 +248,107 @@
 {% endblock %}
 
 {% block dialogs %}
-<dialog class="ds-modal" id="qr-dialog" aria-labelledby="qr-title" aria-describedby="qr-desc">
+<dialog class="ds-modal" id="stations-dialog" aria-labelledby="stations-title" aria-describedby="stations-desc">
   <div class="ds-modal-body">
     <div class="ds-modal-head">
       <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-qrcode"></i></div>
-      <h2 class="ds-modal-title" id="qr-title">Scan a campus QR code</h2>
-      <p class="ds-modal-desc" id="qr-desc">Point your phone camera at the code posted at a time station. The code changes every minute, so a photo of it will not work.</p>
+      <h2 class="ds-modal-title" id="stations-title">Time stations</h2>
+      <p class="ds-modal-desc" id="stations-desc">Each station's QR code changes every minute. Employees can also time in on the web.</p>
     </div>
-    <div class="fms-qr-frame" aria-hidden="true"><i class="ti ti-scan"></i><span>Camera preview</span></div>
-    <p class="fms-caption fms-center"><i class="ti ti-map-pin" aria-hidden="true"></i> Nearest station: {{ clock.station }}</p>
+    <ul class="fms-list">
+      {% for station in stations %}
+      <li><span class="fms-min0"><span class="fms-schedule-title">{{ station.name }}</span><span class="fms-caption">{{ station.kind }} · last scan {{ station.last }}</span></span>{% if station.online %}<span class="ds-status v-success"><span class="ds-dot d-success"></span>Online</span>{% else %}<span class="ds-status v-error"><span class="ds-dot d-error"></span>Offline</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
   </div>
   <div class="ds-modal-foot">
     <div class="ds-modal-foot-row">
-      <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
-      <button type="button" class="ds-btn ds-btn-primary" data-qr-scan data-station="{{ clock.station }}">Simulate scan</button>
+      <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Close</button>
     </div>
   </div>
 </dialog>
 
-<dialog class="ds-modal m-md" id="leave-dialog" aria-labelledby="leave-title" aria-describedby="leave-desc">
-  <form method="dialog" novalidate class="fms-dialog-form" data-leave-form>
+<dialog class="ds-modal m-md" id="export-dialog" aria-labelledby="export-title" aria-describedby="export-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-export-form>
     <div class="ds-modal-body">
       <div class="ds-modal-head">
-        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-calendar-plus"></i></div>
-        <h2 class="ds-modal-title" id="leave-title">File leave</h2>
-        <p class="ds-modal-desc" id="leave-desc">Your department head reviews it first, then HR. Days are held from your balance until a decision.</p>
-      </div>
-      <div class="ds-field">
-        <label class="ds-label" for="leave-type">Leave type</label>
-        <select class="ds-control" id="leave-type" data-leave-type>
-          {% for leave in leave_types %}<option value="{{ leave.code }}" data-left="{{ leave.value }}" data-name="{{ leave.type }}" data-attachment="{{ leave.attachment|yesno:'true,false' }}">{{ leave.type }} · {{ leave.value }} days left</option>{% endfor %}
-        </select>
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-table-export"></i></div>
+        <h2 class="ds-modal-title" id="export-title">Export attendance</h2>
+        <p class="ds-modal-desc" id="export-desc">A CSV with one row per working day: present, late, absent, on leave and not timed in.</p>
       </div>
       <div class="fms-form">
         <div class="ds-field">
-          <label class="ds-label" for="leave-start">First day <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
-          <input class="ds-control" id="leave-start" type="date" aria-required="true" aria-describedby="leave-date-error" data-leave-start>
+          <label class="ds-label" for="export-department">Department</label>
+          <select class="ds-control" id="export-department" data-export-department-field>
+            <option value="">Whole school</option>
+            {% for dept in departments %}<option>{{ dept.name }}</option>{% endfor %}
+          </select>
         </div>
         <div class="ds-field">
-          <label class="ds-label" for="leave-end">Last day <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
-          <input class="ds-control" id="leave-end" type="date" aria-required="true" aria-describedby="leave-date-error" data-leave-end>
+          <label class="ds-label" for="export-month">Month</label>
+          <select class="ds-control" id="export-month" data-export-month>
+            {% for name in months %}<option value="{{ forloop.counter|add:6 }}"{% if forloop.last %} selected{% endif %}>{{ name }} 2026</option>{% endfor %}
+          </select>
         </div>
       </div>
-      <p class="ds-error fms-field-error" id="leave-date-error" data-leave-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span></span></p>
-      <div class="ds-field">
-        <label class="fms-check"><input type="checkbox" data-leave-half> Half day (single day only)</label>
-      </div>
-      <div class="ds-field">
-        <label class="ds-label" for="leave-reason">Reason</label>
-        <textarea class="ds-control" id="leave-reason" placeholder="Optional for vacation leave"></textarea>
-      </div>
-      <div class="ds-field" data-leave-attachment hidden>
-        <label class="ds-label" for="leave-file">Medical certificate</label>
-        <input class="ds-control" id="leave-file" type="file" accept=".pdf,image/*" aria-describedby="leave-file-hint">
-        <p class="ds-hint" id="leave-file-hint">Needed for sick leave. A photo or PDF works.</p>
-      </div>
-      <div class="fms-balance" aria-live="polite" data-leave-check>Pick the dates to see how many days this uses.</div>
     </div>
     <div class="ds-modal-foot">
       <div class="ds-modal-foot-row">
         <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
-        <button type="submit" class="ds-btn ds-btn-primary">Send request</button>
+        <button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-download" aria-hidden="true"></i>Download CSV</button>
       </div>
     </div>
   </form>
 </dialog>
 
-{# ── Calendar modals (handoff §8.11–8.13). An employee keeps only their own events, so the
-   form has no "Add to" choice and no event type (handoff §6). ── #}
+<dialog class="ds-modal m-md" id="decline-dialog" aria-labelledby="decline-title" aria-describedby="decline-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-decline-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-x"></i></div>
+        <h2 class="ds-modal-title" id="decline-title">Decline leave</h2>
+        <p class="ds-modal-desc" id="decline-desc">The days go back to the employee's balance. They see your remark and can refile.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="decline-remark">Remark <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <textarea class="ds-control" id="decline-remark" aria-required="true" aria-describedby="decline-error" data-decline-remark></textarea>
+        <p class="ds-error fms-field-error" id="decline-error" data-decline-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Add a remark so the employee knows why.</span></p>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Decline</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+{# ── Calendar modals (handoff §8.11–8.13). HR keeps the school calendar, so creating an event asks
+   where it goes (School calendar or Just me), and a school event picks its type. ── #}
 <dialog class="ds-modal m-md" id="cal-event-dialog" aria-labelledby="cal-event-title" aria-describedby="cal-event-desc">
   <form method="dialog" novalidate class="fms-dialog-form" data-cal-event-form>
     <div class="ds-modal-body">
       <div class="ds-modal-head">
         <div class="ds-modal-icon cal-modal-icon" aria-hidden="true" data-cal-event-icon><i class="ti ti-user"></i></div>
-        <h2 class="ds-modal-title" id="cal-event-title" data-cal-event-heading>Add My Event</h2>
-        <p class="ds-modal-desc" id="cal-event-desc">Only you can see this</p>
+        <h2 class="ds-modal-title" id="cal-event-title" data-cal-event-heading>Add New Event</h2>
+        <p class="ds-modal-desc" id="cal-event-desc" data-cal-event-sub>S.Y. {{ calendar.school_year }}</p>
       </div>
       <div class="ds-alert v-error cal-form-alert" role="alert" data-cal-event-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><div class="ds-alert-body"></div></div>
+      <div class="ds-field" data-cal-kind-field>
+        <span class="ds-label" id="cal-ev-kind-label">Add to</span>
+        <div class="ds-segmented" role="group" aria-labelledby="cal-ev-kind-label">
+          <button type="button" class="ds-seg" aria-pressed="true" data-cal-kind="school"><i class="ti ti-school" aria-hidden="true"></i>School calendar</button>
+          <button type="button" class="ds-seg" aria-pressed="false" data-cal-kind="mine"><i class="ti ti-lock" aria-hidden="true"></i>Just me</button>
+        </div>
+      </div>
       <div class="ds-field">
         <label class="ds-label" for="cal-ev-title">Title <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
-        <input class="ds-control" id="cal-ev-title" maxlength="150" placeholder="e.g. Dentist appointment" autocomplete="off" data-cal-field="title">
+        <input class="ds-control" id="cal-ev-title" maxlength="150" placeholder="e.g. Independence Day" autocomplete="off" data-cal-field="title">
+      </div>
+      <div class="ds-field" data-cal-type-field>
+        <span class="ds-label" id="cal-ev-type-label">Event Type <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></span>
+        <div class="cal-type-grid" role="group" aria-labelledby="cal-ev-type-label" data-cal-type-grid></div>
       </div>
       <div class="fms-form">
         <div class="ds-field">

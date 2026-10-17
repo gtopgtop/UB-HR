@@ -1,0 +1,113 @@
+{% extends "hr/base.html" %}
+{# HR assistant, HR officer view (plan §3 Module 4, §7.4: "E answers, handoffs"). Data: hr/sample_data.py ASSISTANT. #}
+
+{% block actions %}
+<div class="ds-actions">
+  <a class="ds-btn ds-btn-secondary" href="{% url 'hr:settings' %}"><i class="ti ti-settings" aria-hidden="true"></i>FAQ editor</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="fms-grid is-stats">
+  {% for stat in stats %}
+  <div class="ds-card ds-stat">
+    <div class="ds-stat-icon {{ stat.tone }}" aria-hidden="true"><i class="ti ti-{{ stat.icon }}"></i></div>
+    <div class="fms-grow">
+      <div class="ds-stat-value">{{ stat.value }}</div>
+      <div class="ds-stat-label">{{ stat.label }}</div>
+      <div class="ds-stat-hint">{{ stat.hint }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="fms-dash">
+  <div class="fms-col">
+
+    <section class="ds-card ds-panel" aria-labelledby="handoffs-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="handoffs-title">Handoffs</h2>
+          <p class="ds-panel-sub">Questions the assistant couldn't answer · {{ handoffs|length }} open</p>
+        </div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for h in handoffs %}
+          <li>
+            <span class="fms-min0">
+              <span class="fms-schedule-title">{{ h.question }}</span>
+              <span class="fms-caption">{{ h.name }} · {{ h.department }} · {{ h.when }}</span>
+              <span class="fms-caption">Closest FAQ: {{ h.closest }} <span class="ds-badge v-warning s-sm">{{ h.match }}</span></span>
+            </span>
+            <span class="fms-row fms-end">
+              <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" aria-label="Save the answer to: {{ h.question }} as an FAQ"><i class="ti ti-plus" aria-hidden="true"></i>Add FAQ</button>
+              <a class="ds-btn ds-btn-secondary ds-btn-sm" href="{% url 'hr:messages' %}" aria-label="Reply to {{ h.name }}">Reply</a>
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="top-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="top-title">Most asked this month</h2>
+          <p class="ds-panel-sub">Answered from the FAQ</p>
+        </div>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for q in top_questions %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ q.question }}</span><span class="fms-meter-value"><strong>{{ q.value }}</strong></span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ q.pct }}%"></i></div>
+            <div class="fms-caption">FAQ: {{ q.faq }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="fms-col is-side">
+
+    <section class="ds-card ds-panel" aria-labelledby="flagged-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="flagged-title">Answers to review</h2>
+          <p class="ds-panel-sub">Marked not helpful by employees</p>
+        </div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for f in flagged %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ f.faq }}</span><span class="fms-muted">{{ f.reason }}</span><span class="fms-caption">{{ f.votes }}</span></span><a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:settings' %}" aria-label="Edit the {{ f.faq }} answer"><i class="ti ti-pencil" aria-hidden="true"></i>Edit</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="preview-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="preview-title">What employees see</h2>
+          <p class="ds-panel-sub">A sample answer and the suggested questions</p>
+        </div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <ol class="fms-bubbles" aria-label="Sample conversation">
+          {% for m in preview %}
+          <li class="fms-bubble{% if m.mine %} is-mine{% endif %}"><div class="fms-caption">{% if m.mine %}Employee{% else %}HR assistant{% endif %}</div><p>{{ m.text }}</p></li>
+          {% endfor %}
+        </ol>
+        <div class="fms-row">
+          {% for chip in chips %}<span class="ds-badge">{{ chip }}</span>{% endfor %}
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+{% endblock %}
