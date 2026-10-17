@@ -1,0 +1,61 @@
+{% extends "hr/base.html" %}
+{% load static %}
+{# Employee directory: search and filter every employee; opens the record view (plan §9.2). Data: hr/sample_data.py DIRECTORY. #}
+
+{% block scripts %}<script src="{% static 'hr/js/directory.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
+  <button type="button" class="ds-btn ds-btn-primary"><i class="ti ti-user-plus" aria-hidden="true"></i>Add employee</button>
+</div>
+{% endblock %}
+
+{% block content %}
+<section class="ds-card ds-panel p-none" aria-labelledby="dir-title">
+  <div class="ds-panel-head">
+    <div class="fms-min0">
+      <h2 class="ds-panel-title" id="dir-title">Employees</h2>
+      <p class="ds-panel-sub" aria-live="polite" data-dir-count>Showing {{ rows|length }} of {{ total }} in this sample</p>
+    </div>
+  </div>
+  <div class="ds-panel-body">
+    <div class="ds-toolbar" role="search">
+      <div class="ds-search">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <label class="ds-sr-only" for="dir-search">Search by name or position</label>
+        <input id="dir-search" type="search" placeholder="Search by name or position" data-dir-search>
+      </div>
+      <div class="ds-field fms-inline-field">
+        <label class="ds-label" for="dir-dept">Department</label>
+        <select class="ds-control" id="dir-dept" data-dir-dept><option value="">All departments</option>{% for d in departments %}<option>{{ d }}</option>{% endfor %}</select>
+      </div>
+      <div class="ds-field fms-inline-field">
+        <label class="ds-label" for="dir-status">Status</label>
+        <select class="ds-control" id="dir-status" data-dir-status><option value="">Any status</option>{% for s in statuses %}<option>{{ s }}</option>{% endfor %}</select>
+      </div>
+    </div>
+  </div>
+  <div class="ds-table-wrap">
+    <table class="ds-table">
+      <thead><tr><th scope="col">Employee</th><th scope="col">Department</th><th scope="col">Status</th><th scope="col">Since</th><th scope="col" class="a-right"><span class="ds-sr-only">Open</span></th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr data-dir-row data-dept="{{ r.department }}" data-status="{{ r.status }}" data-text="{{ r.name|lower }} {{ r.position|lower }}">
+          <td><div class="ds-cell-person"><div class="ds-avatar" aria-hidden="true">{{ r.initials }}</div><div><div class="ds-cell-strong">{{ r.name }}</div><div class="ds-cell-sub">{{ r.position }}</div></div></div></td>
+          <td>{{ r.department }}</td>
+          <td><span class="ds-badge v-{{ r.tone }} s-sm">{{ r.status }}</span></td>
+          <td>{{ r.since|default:"—" }}</td>
+          <td class="a-right"><a class="ds-row-action" href="{% url 'hr:records' %}" aria-label="Open {{ r.name }}'s record"><i class="ti ti-chevron-right" aria-hidden="true"></i></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="ds-empty" data-dir-empty hidden>
+    <div class="ds-empty-icon" aria-hidden="true"><i class="ti ti-search"></i></div>
+    <div class="ds-empty-title">No employees match</div>
+    <p class="ds-empty-sub">Try another name, or clear the department and status filters.</p>
+  </div>
+</section>
+{% endblock %}

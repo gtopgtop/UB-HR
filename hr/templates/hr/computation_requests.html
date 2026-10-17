@@ -1,0 +1,67 @@
+{% extends "hr/base.html" %}
+{# Computation requests: the queue of evaluation breakdowns and rechecks (plan §3 Module 3, §5.4). Data: hr/sample_data.py COMPUTATIONS. #}
+
+{% block content %}
+<div class="fms-grid is-stats">
+  {% for stat in stats %}
+  <div class="ds-card ds-stat">
+    <div class="ds-stat-icon {{ stat.tone }}" aria-hidden="true"><i class="ti ti-{{ stat.icon }}"></i></div>
+    <div class="fms-grow">
+      <div class="ds-stat-value">{{ stat.value }}</div>
+      <div class="ds-stat-label">{{ stat.label }}</div>
+      <div class="ds-stat-hint">{{ stat.hint }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<section class="ds-card ds-panel p-none" aria-labelledby="queue-title">
+  <div class="ds-panel-head">
+    <div class="fms-min0">
+      <h2 class="ds-panel-title" id="queue-title">Waiting for release</h2>
+      <p class="ds-panel-sub">Oldest first · an alert is raised after {{ limit }} working days</p>
+    </div>
+  </div>
+  <div class="ds-table-wrap">
+    <table class="ds-table">
+      <thead><tr><th scope="col">Employee</th><th scope="col">Request</th><th scope="col">Filed</th><th scope="col">Open for</th><th scope="col" class="a-right"><span class="ds-sr-only">Action</span></th></tr></thead>
+      <tbody>
+        {% for r in requests %}
+        <tr>
+          <td><div class="ds-cell-strong">{{ r.name }}</div><div class="ds-cell-sub">{{ r.department }}</div></td>
+          <td><span class="ds-badge{% if r.kind == 'Recheck' %} v-accent{% endif %} s-sm">{{ r.kind }}</span></td>
+          <td>{{ r.filed }}</td>
+          <td>{% if r.overdue %}<span class="ds-status v-error"><span class="ds-dot d-error"></span>{{ r.open }}</span>{% else %}<span class="ds-status"><span class="ds-dot"></span>{{ r.open }}</span>{% endif %}</td>
+          <td class="a-right"><a class="ds-btn ds-btn-{% if forloop.first %}primary{% else %}secondary{% endif %} ds-btn-sm" href="{% url 'hr:breakdown' %}" aria-label="Open {{ r.name }}'s {{ r.kind|lower }}">{% if r.kind == 'Recheck' %}Resolve{% else %}Review and release{% endif %}</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="ds-card ds-panel p-none" aria-labelledby="resolved-title">
+  <div class="ds-panel-head">
+    <div class="fms-min0">
+      <h2 class="ds-panel-title" id="resolved-title">Recently resolved</h2>
+      <p class="ds-panel-sub">The employee sees the outcome on their breakdown page</p>
+    </div>
+  </div>
+  <div class="ds-table-wrap">
+    <table class="ds-table">
+      <thead><tr><th scope="col">Employee</th><th scope="col">Request</th><th scope="col">Outcome</th><th scope="col">Resolved</th><th scope="col">Took</th></tr></thead>
+      <tbody>
+        {% for r in resolved %}
+        <tr>
+          <td><div class="ds-cell-strong">{{ r.name }}</div><div class="ds-cell-sub">{{ r.department }}</div></td>
+          <td><span class="ds-badge{% if r.kind == 'Recheck' %} v-accent{% endif %} s-sm">{{ r.kind }}</span></td>
+          <td><span class="ds-status v-success"><span class="ds-dot d-success"></span>{{ r.outcome }}</span></td>
+          <td>{{ r.when }}</td>
+          <td>{{ r.turnaround }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

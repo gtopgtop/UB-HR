@@ -1,0 +1,188 @@
+{% extends "hr/base.html" %}
+{% load static %}
+{# Evaluation breakdown, HR officer view (plan §3 Module 3, §7.3 rule 9; usability task 13). HR releases
+   breakdowns and resolves rechecks. The AI interpretation is the employee's alone (§5.5), so it is not here.
+   Data: hr/sample_data.py BREAKDOWN. #}
+
+{% block scripts %}<script src="{% static 'hr/js/breakdown.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <a class="ds-btn ds-btn-secondary" href="{% url 'hr:computation_requests' %}"><i class="ti ti-list-check" aria-hidden="true"></i>All requests</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="ds-alert v-success" role="status" data-flash hidden><i class="ti ti-circle-check" aria-hidden="true"></i><div class="ds-alert-body" data-flash-text></div><button class="ds-alert-close" type="button" aria-label="Dismiss message" data-flash-close><i class="ti ti-x" aria-hidden="true"></i></button></div>
+
+<div class="fms-dash">
+  <div class="fms-col">
+
+    <div class="ds-card fms-profile">
+      <div class="ds-avatar fms-avatar-lg" aria-hidden="true">{{ employee.initials }}</div>
+      <div class="fms-grow">
+        <div class="fms-profile-name">{{ employee.name }}</div>
+        <div class="fms-muted">{{ employee.position }} · {{ employee.department }} · {{ cycle }}</div>
+      </div>
+      <div class="fms-row" data-release-status>
+        <span class="ds-badge v-error"><span class="ds-dot d-error"></span>Requested {{ request.filed }} · {{ request.open }}</span>
+      </div>
+    </div>
+
+    <section class="ds-card ds-panel" aria-labelledby="computation-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="computation-title">Computation</h2>
+          <p class="ds-panel-sub">What {{ employee.name }} will see once you release it</p>
+        </div>
+        <div class="fms-figure-value">{{ computation.overall }}<span> / 5</span></div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        {% if computation.merged %}
+        <div class="ds-alert v-info" role="status"><i class="ti ti-lock" aria-hidden="true"></i><div class="ds-alert-body">The peer group had fewer than {{ small_group }} respondents, so students and peers are shown as one combined figure. That way no one can work out the peers' score.</div></div>
+        {% endif %}
+        <div class="ds-table-wrap">
+          <table class="ds-table fms-num">
+            <thead><tr><th scope="col">Evaluator group</th><th scope="col" class="a-right">Respondents</th><th scope="col" class="a-right">Average</th><th scope="col" class="a-right">Weight</th><th scope="col" class="a-right">Points</th></tr></thead>
+            <tbody>
+              {% for g in computation.groups %}
+              <tr><th scope="row" class="ds-cell-strong">{{ g.label }}</th><td class="a-right">{{ g.respondents }}</td><td class="a-right">{{ g.average_text }}</td><td class="a-right">{{ g.weight }}%</td><td class="a-right ds-cell-strong">{{ g.points }}</td></tr>
+              {% endfor %}
+            </tbody>
+            <tfoot><tr><th scope="row">Overall rating</th><td></td><td></td><td class="a-right">100%</td><td class="a-right">{{ computation.overall }}</td></tr></tfoot>
+          </table>
+        </div>
+        <p class="fms-formula"><span class="ds-eyebrow">Formula</span> <code>{{ computation.formula }}</code></p>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="criteria-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="criteria-title">Criterion scores</h2>
+          <p class="ds-panel-sub">Averaged across every evaluator</p>
+        </div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <div class="fms-meters">
+          {% for c in criteria %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ c.label }}</span><span class="fms-meter-value"><strong>{{ c.score }}</strong> / 5</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ c.pct }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+        <div>
+          <h3 class="ds-eyebrow">Supervisor's feedback</h3>
+          <p class="fms-muted">{{ feedback }}</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="fms-col is-side">
+
+    <section class="ds-card ds-panel" aria-labelledby="release-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="release-title">Release</h2>
+          <p class="ds-panel-sub">Check before the employee sees it</p>
+        </div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <ul class="fms-list">
+          {% for check in checks %}
+          <li><span>{{ check }}</span><span class="ds-badge v-success s-sm"><i class="ti ti-check" aria-hidden="true"></i>Done</span></li>
+          {% endfor %}
+        </ul>
+        <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="release-dialog" data-release-open><i class="ti ti-send" aria-hidden="true"></i>Release to {{ employee.name }}</button>
+        <p class="fms-caption">The AI interpretation is generated for {{ employee.name }} alone. HR never sees it.</p>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="queue-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="queue-title">Request queue</h2>
+          <p class="ds-panel-sub">Oldest first · flagged after 5 working days</p>
+        </div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for r in requests %}
+          <li{% if r == request %} aria-current="true" class="fms-current"{% endif %}><span class="fms-min0"><span class="fms-schedule-title">{{ r.name }}</span><span class="fms-caption">{{ r.kind }} · {{ r.department }} · filed {{ r.filed }}</span></span>{% if r.overdue %}<span class="ds-badge v-error s-sm">{{ r.open }}</span>{% else %}<span class="ds-badge s-sm">{{ r.open }}</span>{% endif %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="recheck-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="recheck-title">Recheck request</h2>
+          <p class="ds-panel-sub">{{ recheck.name }} · {{ recheck.department }}</p>
+        </div>
+        <span class="ds-badge v-warning s-sm" data-recheck-status>Open</span>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <dl class="fms-dl">
+          <div><dt>Cycle</dt><dd>{{ recheck.cycle }}</dd></div>
+          <div><dt>Released rating</dt><dd>{{ recheck.rating }}</dd></div>
+          <div><dt>Filed</dt><dd>{{ recheck.filed }}</dd></div>
+        </dl>
+        <blockquote class="fms-quote">{{ recheck.reason }}</blockquote>
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-open="recheck-dialog" data-recheck-open><i class="ti ti-edit" aria-hidden="true"></i>Resolve with remarks</button>
+      </div>
+    </section>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal" id="release-dialog" aria-labelledby="release-dialog-title" aria-describedby="release-dialog-desc">
+  <div class="ds-modal-body">
+    <div class="ds-modal-head">
+      <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-send"></i></div>
+      <h2 class="ds-modal-title" id="release-dialog-title">Release this breakdown?</h2>
+      <p class="ds-modal-desc" id="release-dialog-desc">{{ employee.name }} will see the computation, the criterion scores and the supervisor's feedback, and can file a recheck. Individual answers stay anonymous.</p>
+    </div>
+  </div>
+  <div class="ds-modal-foot">
+    <div class="ds-modal-foot-row">
+      <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+      <button type="button" class="ds-btn ds-btn-primary" data-release-confirm data-name="{{ employee.name }}">Release</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="ds-modal m-md" id="recheck-dialog" aria-labelledby="recheck-dialog-title" aria-describedby="recheck-dialog-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-recheck-form data-name="{{ recheck.name }}">
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-edit"></i></div>
+        <h2 class="ds-modal-title" id="recheck-dialog-title">Resolve the recheck</h2>
+        <p class="ds-modal-desc" id="recheck-dialog-desc">{{ recheck.name }} sees the outcome and your remarks.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="recheck-outcome">Outcome</label>
+        <select class="ds-control" id="recheck-outcome" data-recheck-outcome>
+          <option value="keep">Rating stays at {{ recheck.rating }}</option>
+          <option value="correct">Rating corrected</option>
+        </select>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="recheck-remark">Remarks <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <textarea class="ds-control" id="recheck-remark" rows="3" aria-required="true" aria-describedby="recheck-error" data-recheck-remark></textarea>
+        <p class="ds-error fms-field-error" id="recheck-error" data-recheck-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Add remarks so the employee knows what was checked.</span></p>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Resolve</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

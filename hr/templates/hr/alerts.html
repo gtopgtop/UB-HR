@@ -1,0 +1,137 @@
+{% extends "hr/base.html" %}
+{% load static %}
+{# Alerts and interventions: why each alert was raised and what was done (plan §5, usability task 12).
+   Data: hr/sample_data.py ALERTS_PAGE. #}
+
+{% block scripts %}<script src="{% static 'hr/js/alerts.js' %}" defer></script>{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+<div class="fms-dash">
+  <div class="fms-col">
+
+    <section class="ds-card ds-panel" aria-labelledby="focus-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="focus-title">{{ focus.title }}</h2>
+          <p class="ds-panel-sub">Raised {{ focus.raised }} · score {{ focus.score }} · High from 70</p>
+        </div>
+        <span class="ds-badge v-{{ focus.tone }}"><span class="ds-dot d-{{ focus.tone }}"></span>{{ focus.level }}</span>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <p class="fms-muted">{{ focus.projection }}</p>
+        <h3 class="ds-eyebrow">Why it was raised</h3>
+        <div class="fms-meters">
+          {% for f in focus.factors %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ f.label }}</span><span class="fms-meter-value"><strong>{{ f.points }}</strong> pts · {{ f.score }} × {{ f.weight }}%</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ f.pct }}%"></i></div>
+            <div class="fms-caption">{{ f.source }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="fms-row fms-between">
+          <span data-intervention-status="{{ focus.id }}"><span class="ds-status v-{{ focus.status_tone }}"><span class="ds-dot d-{{ focus.status_tone }}"></span>{{ focus.status }}</span> <span class="fms-caption">{{ focus.intervention }}</span></span>
+          <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="intervention-dialog" data-intervene="{{ focus.id }}" data-alert-title="{{ focus.title }}"><i class="ti ti-plus" aria-hidden="true"></i>Start an intervention</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="retention-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="retention-title">{{ retention.title }}</h2>
+          <p class="ds-panel-sub">{{ retention.subject }} · raised {{ retention.raised }} · score {{ retention.score }}</p>
+        </div>
+        <span class="ds-badge v-{{ retention.tone }}"><span class="ds-dot d-{{ retention.tone }}"></span>{{ retention.level }}</span>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <div class="ds-alert v-info" role="status"><i class="ti ti-lock" aria-hidden="true"></i><div class="ds-alert-body">{{ retention.projection }} This score uses no wellness data.</div></div>
+        <div class="fms-meters">
+          {% for f in retention.factors %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ f.label }}</span><span class="fms-meter-value"><strong>{{ f.points }}</strong> pts · {{ f.score }} × {{ f.weight }}%</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ f.pct }}%"></i></div>
+            <div class="fms-caption">{{ f.source }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="fms-row fms-between">
+          <span data-intervention-status="{{ retention.id }}"><span class="ds-status"><span class="ds-dot"></span>{{ retention.status }}</span></span>
+          <button type="button" class="ds-btn ds-btn-secondary" data-dialog-open="intervention-dialog" data-intervene="{{ retention.id }}" data-alert-title="{{ retention.title }}"><i class="ti ti-plus" aria-hidden="true"></i>Start an intervention</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="fms-col is-side">
+    <section class="ds-card ds-panel" aria-labelledby="all-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="all-title">Open alerts</h2>
+          <p class="ds-panel-sub">{{ alerts|length }} open · {{ high }} high</p>
+        </div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for a in alerts %}
+          <li{% if a == focus %} class="fms-current" aria-current="true"{% endif %}><span class="fms-min0"><span class="fms-schedule-title">{{ a.title }}</span><span class="fms-caption">{{ a.reason }}</span><span class="fms-caption" data-intervention-status="{{ a.id }}-list">{{ a.kind }} · {{ a.status }}{% if a.owner %} · {{ a.owner }}{% endif %}</span></span><span class="ds-badge v-{{ a.tone }} s-sm">{{ a.level }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="int-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="int-title">Interventions</h2>
+          <p class="ds-panel-sub">Owner, follow-up and outcome</p>
+        </div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list" data-intervention-list>
+          {% for item in interventions %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ item.title }}</span><span class="fms-caption">{{ item.group }} · {{ item.owner }} · {{ item.follow_up }}</span></span><span class="ds-badge{% if item.tone %} v-{{ item.tone }}{% endif %} s-sm">{{ item.status }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal m-md" id="intervention-dialog" aria-labelledby="int-dialog-title" aria-describedby="int-dialog-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-intervention-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-plus"></i></div>
+        <h2 class="ds-modal-title" id="int-dialog-title">Start an intervention</h2>
+        <p class="ds-modal-desc" id="int-dialog-desc" data-intervention-for></p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="int-plan">Action plan <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <textarea class="ds-control" id="int-plan" rows="3" aria-required="true" aria-describedby="int-error" placeholder="e.g. Meet the dean to rebalance teaching loads before midterms" data-intervention-plan></textarea>
+        <p class="ds-error fms-field-error" id="int-error" data-intervention-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Describe what will be done.</span></p>
+      </div>
+      <div class="fms-form">
+        <div class="ds-field">
+          <label class="ds-label" for="int-owner">Owner</label>
+          <select class="ds-control" id="int-owner" data-intervention-owner>{% for o in owners %}<option>{{ o }}</option>{% endfor %}</select>
+        </div>
+        <div class="ds-field">
+          <label class="ds-label" for="int-date">Follow-up date</label>
+          <input class="ds-control" id="int-date" type="date" value="2026-10-26" min="2026-10-12" data-intervention-date>
+        </div>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Start</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

@@ -60,7 +60,7 @@ class ShellTests(TestCase):
         self.assertTemplateUsed(resp, "hr/attendance.html")
         self.assertContains(resp, "214 of 236 in")  # the same figures as the dashboard
         self.assertContains(resp, "Remind 22 not timed in")
-        self.assertContains(resp, "<strong>97.0%</strong>")  # October's tally, before the script redraws it
+        self.assertContains(resp, "<strong>96.5%</strong>")  # October's tally, before the script redraws it
         self.assertContains(resp, "data-leave-approve", count=9)  # every request waiting at step 2
         self.assertContains(resp, "Enrollment audit that day")
 
@@ -125,7 +125,65 @@ class ShellTests(TestCase):
         self.assertContains(resp, '<span aria-current="page">Evaluation breakdown</span>')
 
     def test_placeholder_lists_what_is_planned(self):
-        self.assertContains(self.client.get(BY_NAME["career"].url), "<li>Salary grade path</li>")
+        self.assertContains(self.client.get(BY_NAME["executive"].url), "<li>Burnout map</li>")
+
+    def test_department_pages_show_engineering(self):
+        overview = self.client.get(BY_NAME["department"].url)
+        self.assertContains(overview, "College of Engineering · Dean Ellis Ramirez")
+        self.assertContains(overview, "32 of 36 present")  # the dashboard's department figures
+        self.assertEqual(overview.context["burnout"]["score"], 72)
+        approvals = self.client.get(BY_NAME["approvals"].url)
+        self.assertContains(approvals, "data-say=", count=approvals.context["overdue"])  # remind only the late ones
+        team = self.client.get(BY_NAME["team"].url)
+        self.assertEqual(len(team.context["team"]), 10)
+
+    def test_hr_dashboard_draws_a_chart_set_per_department(self):
+        resp = self.client.get(BY_NAME["hr_dashboard"].url)
+        self.assertContains(resp, "data-chart-set=", count=8)  # whole school plus 7 departments
+        self.assertContains(resp, 'data-chart-set="d0" hidden')
+        for r in resp.context["retention"]:
+            with self.subTest(department=r["name"]):
+                self.assertEqual(r["total"], next(d["headcount"] for d in DEPTS if d["name"] == r["name"]))
+
+    def test_hr_office_pages_follow_the_queues(self):
+        leave = self.client.get(BY_NAME["leave_processing"].url)
+        self.assertContains(leave, "data-leave-approve", count=9)  # the dashboard's "Leave to process"
+        requests = self.client.get(BY_NAME["computation_requests"].url)
+        self.assertContains(requests, "Review and release", count=3)
+        self.assertContains(requests, ">Resolve</a>", count=1)
+        alerts = self.client.get(BY_NAME["alerts"].url)
+        self.assertEqual(alerts.context["focus"]["score"], 72)
+        self.assertEqual(alerts.context["retention"]["score"], 74)  # High: plan §5.2 factors, no wellness data
+        self.assertContains(alerts, "Start an intervention", count=3)  # two buttons and the dialog title
+        directory = self.client.get(BY_NAME["directory"].url)
+        self.assertContains(directory, "data-dir-row", count=len(directory.context["rows"]))
+        comms = self.client.get(BY_NAME["communications"].url)
+        self.assertContains(comms, "201 of 248 acknowledged")  # the dashboard memo's read count
+
+    def test_career_counts_add_up(self):
+        resp = self.client.get(BY_NAME["career"].url)
+        self.assertTemplateUsed(resp, "hr/career.html")
+        self.assertEqual(sum(t["headcount"] for t in resp.context["tracks"]), 248)  # every employee on a ladder
+        self.assertEqual(resp.context["pipeline_ready"], len(resp.context["ready"]))  # the bars match the list
+        self.assertEqual(sum(g["value"] for g in resp.context["salary_grades"]), 248)
+        self.assertContains(resp, "Stagnant")
+
+    def test_evaluations_match_the_dashboard(self):
+        resp = self.client.get(BY_NAME["evaluations"].url)
+        self.assertTemplateUsed(resp, "hr/evaluations.html")
+        self.assertEqual(resp.context["school_overall"], "4.20")  # the dashboard's school average, 4.2
+        self.assertContains(resp, 'aria-current="step"', count=1)
+        self.assertContains(resp, "<strong>225</strong> of 248")
+
+    def test_breakdown_combines_small_groups_and_hides_the_interpretation(self):
+        resp = self.client.get(BY_NAME["breakdown"].url)
+        self.assertTemplateUsed(resp, "hr/breakdown.html")
+        self.assertContains(resp, "(60% × 3.93) + (40% × 4.10) = 4.00")  # 4 peers: merged with students
+        self.assertNotContains(resp, '<th scope="row" class="ds-cell-strong">Peers</th>')
+        evaluations = self.client.get(BY_NAME["evaluations"].url).context["results"]
+        dana = next(r for r in evaluations if r["name"] == "Dana Villanueva")
+        self.assertEqual(dana["overall"], resp.context["computation"]["overall"])
+        self.assertNotContains(resp, "Copy interpretation")  # the AI interpretation is the employee's alone
 
     def test_wellness_shows_groups_only(self):
         resp = self.client.get(BY_NAME["wellness"].url)

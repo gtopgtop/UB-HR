@@ -1,0 +1,112 @@
+{% extends "hr/base.html" %}
+{# Announcements and inbox: the composer, acknowledgments by department, scheduled posts and saved report
+   templates (plan §3 Modules 4 and 6). Data: hr/sample_data.py COMMUNICATIONS. #}
+
+{% block actions %}
+<div class="ds-actions">
+  <a class="ds-btn ds-btn-secondary" href="{% url 'hr:messages' %}#concerns"><i class="ti ti-lock" aria-hidden="true"></i>Concerns · {{ concerns_new }} new</a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+<div class="fms-dash">
+  <div class="fms-col">
+    <section class="ds-card ds-panel" aria-labelledby="compose-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="compose-title">New announcement</h2>
+          <p class="ds-panel-sub">Shows on the audience's dashboard and in their notifications</p>
+        </div>
+      </div>
+      <form class="ds-panel-body ds-stack" onsubmit="return false" novalidate>
+        <div class="ds-field">
+          <label class="ds-label" for="ann-title">Title <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+          <input class="ds-control" id="ann-title" aria-required="true" placeholder="e.g. Evaluation forms open Oct 26">
+        </div>
+        <div class="fms-form">
+          <div class="ds-field">
+            <label class="ds-label" for="ann-audience">Audience</label>
+            <select class="ds-control" id="ann-audience">{% for a in audiences %}<option>{{ a }}</option>{% endfor %}</select>
+          </div>
+          <div class="ds-field">
+            <label class="ds-label" for="ann-kind">Kind</label>
+            <select class="ds-control" id="ann-kind"><option>Memo</option><option>Policy</option><option>Event</option></select>
+          </div>
+        </div>
+        <div class="ds-field">
+          <label class="ds-label" for="ann-body">Message</label>
+          <textarea class="ds-control" id="ann-body" rows="5"></textarea>
+        </div>
+        <div class="fms-row fms-between">
+          <label class="fms-check"><input type="checkbox" checked> Ask everyone to acknowledge it</label>
+          <div class="fms-row">
+            <button type="button" class="ds-btn ds-btn-secondary" data-say="Saved as a draft." data-say-repeat>Save draft</button>
+            <button type="submit" class="ds-btn ds-btn-primary" data-say="Announcement sent. Read receipts will appear under Sent." data-say-repeat><i class="ti ti-send" aria-hidden="true"></i>Send</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="ack-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="ack-title">Acknowledgments: {{ ack_title }}</h2>
+          <p class="ds-panel-sub">{{ ack_total.value }} of {{ ack_total.total }} acknowledged · by department</p>
+        </div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Reminder sent to the {{ ack_missing }} employees who haven't acknowledged yet."><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind the rest</button>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for d in ack %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ d.name }}</span><span class="fms-meter-value"><strong>{{ d.value }}</strong> of {{ d.total }}</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ d.pct }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="fms-col is-side">
+    <section class="ds-card ds-panel" aria-labelledby="sched-title">
+      <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="sched-title">Scheduled and drafts</h2><p class="ds-panel-sub">Not sent yet</p></div></div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for s in scheduled %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ s.title }}</span><span class="fms-caption">{{ s.kind }} · {{ s.audience }}</span></span><span class="ds-badge{% if s.when != 'Draft' %} v-info{% endif %} s-sm">{{ s.when }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="sent-title">
+      <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="sent-title">Sent</h2><p class="ds-panel-sub">Read by, out of everyone</p></div></div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for item in sent %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ item.title }}</span><span class="fms-meter-value"><strong>{{ item.value }}</strong> read</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ item.pct }}%"></i></div>
+            <div class="fms-caption">{{ item.kind }} · {{ item.date }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="reports-title">
+      <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="reports-title">Saved reports</h2><p class="ds-panel-sub">One click, current data</p></div></div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for r in reports %}
+          <li><span class="ds-cell-person"><span class="ds-stat-icon" aria-hidden="true"><i class="ti ti-{{ r.icon }}"></i></span><span class="fms-min0"><span class="fms-schedule-title">{{ r.name }}</span><span class="fms-caption">{{ r.format }} · last run {{ r.last }}</span></span></span><button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="{{ r.name }} is ready: a {{ r.format }} with today's data." data-say-repeat aria-label="Run {{ r.name }}"><i class="ti ti-download" aria-hidden="true"></i>Run</button></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

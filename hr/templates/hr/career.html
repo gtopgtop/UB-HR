@@ -1,0 +1,210 @@
+{% extends "hr/base.html" %}
+{# Career progress, HR officer view (plan §3 Module 3, §5.3, §6.3, §7.4). HR verifies requirement progress. Data: hr/sample_data.py CAREER. #}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
+  <a class="ds-btn ds-btn-primary" href="{% url 'hr:settings' %}"><i class="ti ti-settings" aria-hidden="true"></i>Career tracks</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="fms-grid is-stats">
+  {% for stat in stats %}
+  <div class="ds-card ds-stat">
+    <div class="ds-stat-icon {{ stat.tone }}" aria-hidden="true"><i class="ti ti-{{ stat.icon }}"></i></div>
+    <div class="fms-grow">
+      <div class="ds-stat-value">{{ stat.value }}</div>
+      <div class="ds-stat-label">{{ stat.label }}</div>
+      <div class="ds-stat-hint">{{ stat.hint }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="fms-dash">
+  <div class="fms-col">
+
+    <section class="ds-card ds-panel" aria-labelledby="pipeline-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="pipeline-title">Promotion pipeline</h2>
+          <p class="ds-panel-sub">Employees below the top rank, by share of next-rank requirements met</p>
+        </div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <ul class="fms-legend" aria-hidden="true">
+          <li><span class="fms-swatch is-low"></span>Under 50%</li>
+          <li><span class="fms-swatch is-mid"></span>50–99%</li>
+          <li><span class="fms-swatch is-ready"></span>Ready</li>
+        </ul>
+        <div class="fms-meters">
+          {% for dept in pipeline %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ dept.name }}</span><span class="fms-meter-value"><strong>{{ dept.ready }}</strong> ready · {{ dept.total }} below the top</span></div>
+            <div class="fms-stackbar" role="img" aria-label="{{ dept.name }}: {{ dept.low }} under 50%, {{ dept.mid }} at 50 to 99%, {{ dept.ready }} ready">
+              <i class="is-low" style="width: {{ dept.low_pct }}%"></i><i class="is-mid" style="width: {{ dept.mid_pct }}%"></i><i class="is-ready" style="width: {{ dept.ready_pct }}%"></i>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel p-none" aria-labelledby="verify-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="verify-title">Requirements to verify</h2>
+          <p class="ds-panel-sub">An item counts toward promotion once HR checks the proof</p>
+        </div>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Employee</th><th scope="col">Requirement</th><th scope="col">Proof</th><th scope="col">Submitted</th><th scope="col" class="a-right"><span class="ds-sr-only">Actions</span></th></tr></thead>
+          <tbody>
+            {% for item in verify %}
+            <tr>
+              <td><div class="ds-cell-strong">{{ item.name }}</div><div class="ds-cell-sub">{{ item.department }}</div></td>
+              <td>{{ item.requirement }}<div class="ds-cell-sub">{{ item.progress }}</div></td>
+              <td><span class="fms-row"><i class="ti ti-file-text" aria-hidden="true"></i>{{ item.proof }}</span></td>
+              <td>{{ item.submitted }}</td>
+              <td class="a-right">
+                <div class="fms-row fms-end">
+                  <button type="button" class="ds-row-action" aria-label="View proof from {{ item.name }}"><i class="ti ti-eye" aria-hidden="true"></i></button>
+                  <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" aria-label="Verify {{ item.requirement|lower }} for {{ item.name }}"><i class="ti ti-check" aria-hidden="true"></i>Verify</button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="fms-grid is-thirds">
+      {% for track in tracks %}
+      <section class="ds-card ds-panel" aria-labelledby="track-{{ forloop.counter }}">
+        <div class="ds-panel-head">
+          <div class="fms-min0">
+            <h2 class="ds-panel-title" id="track-{{ forloop.counter }}">{{ track.name }}</h2>
+            <p class="ds-panel-sub">{{ track.scope }} · {{ track.headcount }} people</p>
+          </div>
+        </div>
+        <div class="ds-panel-body">
+          <div class="fms-meters">
+            {% for rank in track.ranks %}
+            <div class="fms-meter">
+              <div class="fms-meter-head"><span>{{ rank.title }}</span><span class="fms-meter-value"><strong>{{ rank.value }}</strong></span></div>
+              <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ rank.pct }}%"></i></div>
+              <div class="fms-caption">{{ rank.expected }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="fms-col is-side">
+
+    <section class="ds-card ds-panel" aria-labelledby="ready-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="ready-title">Promotion-ready</h2>
+          <p class="ds-panel-sub">Every requirement met, not yet promoted</p>
+        </div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for item in ready %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ item.name }}</span><span class="fms-caption">{{ item.move }}</span><span class="fms-caption">{{ item.department }} · {{ item.since }}</span></span><span class="ds-badge v-success s-sm">Ready</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="stagnant-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="stagnant-title">Stagnant</h2>
+          <p class="ds-panel-sub">{{ stagnant_department }} · raised as an alert</p>
+        </div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:alerts' %}">Alert</a>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for item in stagnant %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ item.name }} · {{ item.rank }}</span><span class="fms-meter-value"><strong>{{ item.value }}</strong> of {{ item.total }} met</span></div>
+            <div class="fms-meter-track is-warning" aria-hidden="true"><i style="width: {{ item.pct }}%"></i></div>
+            <div class="fms-caption">{{ item.years }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="feedback-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="feedback-title">Feedback overdue</h2>
+          <p class="ds-panel-sub">No evaluation or feedback note in 6 months</p>
+        </div>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for dept in feedback_overdue %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ dept.name }}</span><span class="fms-meter-value"><strong>{{ dept.value }}</strong> people</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ dept.pct }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="grades-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="grades-title">Salary grades</h2>
+          <p class="ds-panel-sub">All {{ salary_grades.0.total }} employees</p>
+        </div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <div class="fms-meters">
+          {% for band in salary_grades %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ band.band }}</span><span class="fms-meter-value"><strong>{{ band.value }}</strong></span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ band.pct }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+        <ul class="fms-list" aria-label="Step increments due in the next 60 days">
+          {% for item in step_increments %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ item.name }}</span><span class="fms-caption">{{ item.grade }}</span></span><span class="ds-badge v-info s-sm">Step due {{ item.due }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="recognition-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="recognition-title">Recognition</h2>
+          <p class="ds-panel-sub">Recent commendations</p>
+        </div>
+        <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm"><i class="ti ti-star" aria-hidden="true"></i>Commend</button>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for item in recognition %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ item.name }}</span><span class="fms-muted">{{ item.for }}</span><span class="fms-caption">{{ item.department }} · from the {{ item.by|lower }} · {{ item.when }}</span></span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+  </div>
+</div>
+{% endblock %}

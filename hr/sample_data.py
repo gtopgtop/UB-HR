@@ -8,7 +8,7 @@ import calendar
 from datetime import date, timedelta
 from decimal import Decimal
 
-from .charts import meter, sparkline
+from .charts import columns, linechart, meter, sparkline
 
 
 def peso(amount):
@@ -276,12 +276,16 @@ DASHBOARD = {
 # a Monday tardiness bump. Today comes from DEPTS, so it matches the dashboard to the person.
 
 
+HEAVY_WEEKS = {35: 2, 40: 1}  # ISO weeks of Aug 24 and Sep 28: extra absences in every other department
+
+
 def _past_department_day(day, i, dept):
     o = day.toordinal()
+    week = day.isocalendar()[1]
     on_leave = (o * 3 + i * 5) % 4
-    absent = (o * 5 + i * 7) % 3
+    absent = (o * 5 + i * 7) % 3 + HEAVY_WEEKS.get(week, 0) * (i % 2 == 0)  # flu season and typhoon week
     present = dept["headcount"] - on_leave - absent
-    late = min(present, (o * 7 + i * 11) % 5 + (2 if day.weekday() == 0 else 0))
+    late = min(present, (o * 7 + i * 11) % 5 + (2 if day.weekday() == 0 else 0) + (1 if (o + i) % 4 == 0 else 0))
     return {"name": dept["name"], "staff": dept["headcount"], "present": present, "late": late, "absent": absent,
             "on_leave": on_leave, "not_timed_in": 0}
 
@@ -835,8 +839,574 @@ ASSISTANT = {
     "chips": ["Where is my payslip?", "How do I file sick leave?", "When are evaluations due?"],
 }
 
+# ── Career (HR officer) ─────────────────────────────────────────────────────
+# Tracks, the promotion pipeline and the flags from plan §5.3. HR verifies requirement progress
+# and sees every employee's flags (plan §7.4). Rank counts add up to each track's headcount.
+
+TRACKS = [  # name, departments, ranks (title, expected years in rank, headcount)
+    ("Faculty", "The five colleges", [("Instructor", 3, 72), ("Assistant Professor", 4, 64),
+                                       ("Associate Professor", 5, 38), ("Professor", None, 17)]),
+    ("Basic Education teachers", "Basic Education", [("Teacher I", 3, 12), ("Teacher II", 3, 11),
+                                                      ("Teacher III", 4, 7), ("Master Teacher", None, 4)]),
+    ("Non-teaching staff", "Administrative offices", [("Staff I", 3, 8), ("Staff II", 3, 7), ("Staff III", 4, 5),
+                                                      ("Supervisor", None, 3)]),
+]
+_track_total = {name: sum(n for *_, n in ranks) for name, _, ranks in TRACKS}
+CAREER_TRACKS = [
+    {"name": name, "scope": scope, "headcount": _track_total[name],
+     "ranks": [{"title": title, "expected": f"{years} years expected" if years else "Top of the ladder",
+                **meter(n, _track_total[name])} for title, years, n in ranks]}
+    for name, scope, ranks in TRACKS
+]
+
+# Employees below the top rank, by share of next-rank requirements met.
+PIPELINE = [
+    {"name": d["name"], "low": low, "mid": mid, "ready": ready, "total": low + mid + ready,
+     "low_pct": round(low / (low + mid + ready) * 100, 1), "mid_pct": round(mid / (low + mid + ready) * 100, 1),
+     "ready_pct": round(ready / (low + mid + ready) * 100, 1)}
+    for d, (low, mid, ready) in zip(DEPTS, [(14, 15, 2), (16, 15, 1), (12, 13, 1), (15, 16, 0), (20, 17, 2),
+                                            (14, 15, 0), (10, 10, 0)])
+]
+
+PROMOTION_READY = [
+    {"name": name, "department": dept, "move": move, "since": since}
+    for name, dept, move, since in [
+        ("Jamie Santos", "College of Education", "Associate Professor → Professor", "All met since Oct 2"),
+        ("Morgan Diaz", "College of Computing", "Instructor → Assistant Professor", "All met since Sep 18"),
+        ("Jesse Uy", "College of Computing", "Assistant Professor → Associate Professor", "All met since Sep 9"),
+        ("Lee Navarro", "College of Business", "Assistant Professor → Associate Professor", "All met since Aug 28"),
+        ("Reese Valdez", "College of Arts and Sciences", "Instructor → Assistant Professor", "All met since Aug 14"),
+        ("Sam Torres", "College of Arts and Sciences", "Instructor → Assistant Professor", "All met since Jul 30"),
+    ]
+]
+
+# Stagnant: in rank at least the expected years and under 60% of next-rank requirements met (plan §5.3).
+STAGNANT = [
+    {"name": name, "rank": rank, "years": f"{years} years in rank · {expected} expected", **meter(met, total)}
+    for name, rank, years, expected, met, total in [
+        ("Frankie Castro", "Assistant Professor", 7, 4, 2, 5),
+        ("Jules Medina", "Instructor", 5, 3, 1, 4),
+        ("Rowan Sison", "Associate Professor", 8, 5, 2, 6),
+    ]
+]
+
+REQUIREMENTS_TO_VERIFY = [
+    {"name": name, "department": dept, "requirement": req, "progress": progress, "proof": proof, "submitted": when}
+    for name, dept, req, progress, proof, when in [
+        ("Jamie Santos", "College of Education", "Research publications", "2 of 2", "Journal article, PDF",
+         "Oct 2"),
+        ("Morgan Diaz", "College of Computing", "Master's degree in a related field", "Done", "Diploma, PDF",
+         "Oct 6"),
+        ("Lee Navarro", "College of Business", "Community extension hours", "40 of 40 h",
+         "Extension office certificate", "Oct 7"),
+        ("Rowan Sison", "College of Arts and Sciences", "Research publications", "1 of 2", "Conference paper, PDF",
+         "Oct 8"),
+        ("Robin Cruz", "Basic Education", "Training hours", "24 of 30 h", "Training certificate: Child protection",
+         "Oct 9"),
+    ]
+]
+
+FEEDBACK_OVERDUE = [("College of Engineering", 4), ("Basic Education", 3), ("Administrative offices", 2)]
+SALARY_GRADES = [("SG 9–11", 41), ("SG 12–14", 78), ("SG 15–17", 82), ("SG 18–20", 37), ("SG 21 and up", 10)]
+RECOGNITION = [
+    {"name": "Kai Bautista", "department": "Administrative offices", "for": "Ran enrollment with no queue overflow",
+     "by": "HR", "when": "Oct 8"},
+    {"name": "Drew Mendoza", "department": "College of Arts and Sciences", "for": "Published in a national journal",
+     "by": "Dean", "when": "Sep 30"},
+    {"name": "Robin Cruz", "department": "Basic Education", "for": "Led the reading recovery program",
+     "by": "Principal", "when": "Sep 19"},
+]
+_feedback_total = sum(n for _, n in FEEDBACK_OVERDUE)
+
+CAREER = {
+    "stats": [
+        {"label": "Promotion-ready", "value": len(PROMOTION_READY), "hint": "Every next-rank requirement met",
+         "icon": "trending-up", "tone": "t-success"},
+        {"label": "Requirements to verify", "value": len(REQUIREMENTS_TO_VERIFY), "hint": "Proof uploaded by employees",
+         "icon": "clipboard-check", "tone": "t-warning"},
+        {"label": "Stagnant", "value": len(STAGNANT), "hint": "Past expected time in rank, under 60% met",
+         "icon": "hourglass", "tone": "t-error"},
+        {"label": "Feedback overdue", "value": _feedback_total, "hint": "No evaluation or feedback note in 6 months",
+         "icon": "message-2", "tone": "t-info"},
+    ],
+    "pipeline": PIPELINE,
+    "pipeline_ready": sum(p["ready"] for p in PIPELINE),
+    "tracks": CAREER_TRACKS,
+    "verify": REQUIREMENTS_TO_VERIFY,
+    "ready": PROMOTION_READY,
+    "stagnant": STAGNANT,
+    "stagnant_department": "College of Arts and Sciences",
+    "feedback_overdue": [{"name": name, **meter(n, _feedback_total)} for name, n in FEEDBACK_OVERDUE],
+    "salary_grades": [{"band": band, **meter(n, SCHOOL["headcount"])} for band, n in SALARY_GRADES],
+    "step_increments": STEP_INCREMENTS,
+    "recognition": RECOGNITION,
+}
+
+# ── Evaluations (HR officer) ────────────────────────────────────────────────
+# One result per employee per cycle: student 40%, peer 20%, supervisor 40% (plan §8.4). Non-teaching
+# staff have no student evaluations, so their result weighs peer 40% and supervisor 60%.
+
+WEIGHTS = {"student": 40, "peer": 20, "supervisor": 40}
+NON_TEACHING_WEIGHTS = {"student": 0, "peer": 40, "supervisor": 60}
+LAST_CYCLE = "AY 2025–26 S2"
+
+
+def _overall(scores, weights):
+    return round(sum(scores[k] * w for k, w in weights.items() if w) / 100, 2)
+
+
+# Department averages for the last cycle: student, peer, supervisor (None: no student evaluations).
+DEPT_RATINGS = {
+    "College of Computing": (4.4, 4.2, 4.3), "College of Business": (4.3, 4.1, 4.2),
+    "College of Education": (4.4, 4.2, 4.3), "College of Engineering": (3.9, 4.0, 4.0),
+    "College of Arts and Sciences": (4.3, 4.0, 4.2), "Basic Education": (4.2, 4.1, 4.1),
+    "Administrative offices": (None, 4.2, 4.3),
+}
+
+
+def _dept_rating(name):
+    student, peer, supervisor = DEPT_RATINGS[name]
+    weights = WEIGHTS if student is not None else NON_TEACHING_WEIGHTS
+    overall = _overall({"student": student or 0, "peer": peer, "supervisor": supervisor}, weights)
+    return {"name": name, "student": student, "peer": peer, "supervisor": supervisor, "overall": f"{overall:.2f}",
+            "weights": "40 / 20 / 40" if student is not None else "— / 40 / 60", "value": overall}
+
+
+DEPT_RESULTS = [_dept_rating(d["name"]) for d in DEPTS]
+_school_overall = round(sum(r["value"] * d["headcount"] for r, d in zip(DEPT_RESULTS, DEPTS)) / SCHOOL["headcount"], 2)
+for _r in DEPT_RESULTS:
+    _r["delta"] = f"{_r['value'] - _school_overall:+.2f}"
+    _r["tone"] = "success" if _r["value"] >= _school_overall else "warning"
+
+EVAL_RESULTS = [
+    {"name": e["name"], "department": e["department"], "position": e["position"], "overall": overall,
+     "acknowledged": ack, "breakdown": breakdown, "tone": tone}
+    for e, (overall, ack, breakdown, tone) in zip(EMPLOYEES, [
+        ("4.45", "Jun 20", "Not requested", ""), ("4.18", "Jun 24", "Not requested", ""),
+        ("—", "", "New this year", ""), ("4.62", "Jun 19", "Released Jun 30", "success"),
+        ("4.31", "", "Not requested", ""), ("4.40", "Jun 22", "Not requested", ""),
+        ("—", "", "New this year", ""), ("4.00", "Jun 25", "Requested Oct 2", "warning"),
+    ])
+]
+_acknowledged = 231
+
+EVALUATIONS = {
+    "cycle": DASHBOARD["cycle"],
+    "weights": [("Students", WEIGHTS["student"]), ("Peers", WEIGHTS["peer"]), ("Supervisor", WEIGHTS["supervisor"])],
+    "last_cycle": LAST_CYCLE,
+    "released": {"label": "Results acknowledged", **meter(_acknowledged, SCHOOL["headcount"])},
+    "unacknowledged": SCHOOL["headcount"] - _acknowledged,
+    "school_overall": f"{_school_overall:.2f}",
+    "departments": DEPT_RESULTS,
+    "results": EVAL_RESULTS,
+    "requests_open": len(COMPUTATION_REQUESTS),
+}
+
+# ── Evaluation breakdown (HR officer) ───────────────────────────────────────
+# The request HR has open: Dana Villanueva's breakdown, 6 working days old. Her peer group had only
+# 4 respondents, so peers and students are shown as one combined figure (plan §7.3, rule 9).
+# HR never sees the AI interpretation; it is private to the employee (plan §5.5).
+
+_GROUPS = [  # key, label, respondents, average
+    ("student", "Students", 118, 3.9),
+    ("peer", "Peers", 4, 4.0),
+    ("supervisor", "Supervisor", 1, 4.1),
+]
+SMALL_GROUP = 5
+
+
+def _breakdown():
+    groups = {key: {"label": label, "respondents": n, "average": avg, "weight": WEIGHTS[key]}
+              for key, label, n, avg in _GROUPS}
+    shown = []
+    merge = any(groups[k]["respondents"] < SMALL_GROUP for k in ("student", "peer"))
+    if merge:
+        s, p = groups["student"], groups["peer"]
+        weight = s["weight"] + p["weight"]
+        average = (s["average"] * s["weight"] + p["average"] * p["weight"]) / weight
+        shown.append({"label": "Students and peers, combined", "respondents": s["respondents"] + p["respondents"],
+                      "average": average, "weight": weight})
+    else:
+        shown += [groups["student"], groups["peer"]]
+    shown.append(groups["supervisor"])
+    overall = sum(g["average"] * g["weight"] for g in shown) / 100
+    for g in shown:
+        g["average_text"] = f"{g['average']:.2f}"
+        g["points"] = f"{g['average'] * g['weight'] / 100:.2f}"
+        g.update(meter(g["average"], 5))
+    formula = " + ".join(f"({g['weight']}% × {g['average_text']})" for g in shown) + f" = {overall:.2f}"
+    return {"groups": shown, "raw": list(groups.values()), "merged": merge, "overall": f"{overall:.2f}",
+            "formula": formula}
+
+
+CRITERIA = [("Teaching effectiveness", 4.1), ("Subject mastery", 4.3), ("Classroom management", 3.8),
+            ("Assessment and feedback", 3.7), ("Professionalism", 4.2), ("Punctuality and attendance", 3.9)]
+
+BREAKDOWN = {
+    "requests": COMPUTATION_REQUESTS,
+    "request": COMPUTATION_REQUESTS[0],
+    "employee": next(e for e in EMPLOYEES if e["name"] == COMPUTATION_REQUESTS[0]["name"]),
+    "cycle": LAST_CYCLE,
+    "computation": _breakdown(),
+    "small_group": SMALL_GROUP,
+    "criteria": [{"label": label, "score": f"{score:.1f}", **meter(score, 5)} for label, score in CRITERIA],
+    "feedback": "Dana explains hard topics clearly and labs are well prepared. Returning graded work sooner, within "
+                "a week, would help students act on it before the next assessment.",
+    "checks": [
+        "Respondent counts match the closed evaluation forms",
+        f"Groups under {SMALL_GROUP} respondents are combined, so no small group's score can be worked out",
+        "The formula gives the released rating",
+    ],
+    "recheck": {"name": "Sam Torres", "department": "College of Arts and Sciences", "cycle": LAST_CYCLE,
+                "rating": "4.12", "filed": "Oct 8",
+                "reason": "My peer average looks like it leaves out the second classroom observation in April."},
+}
+
+# ── Department heads and the department HR is looking at ────────────────────
+# The Department pages show one department as HR sees it: College of Engineering, the one with the
+# high burnout alert. HR watches step 1 of leave but does not decide it (plan §3, Module 2).
+
+DEPT_HEADS = {
+    "College of Computing": "Dean Paz Villareal", "College of Business": "Dean Rene Abad",
+    "College of Education": "Dean Lou Fernandez", "College of Engineering": "Dean Ellis Ramirez",
+    "College of Arts and Sciences": "Dean Gale Pineda", "Basic Education": "Principal Nico Yap",
+    "Administrative offices": "Director Mika Santiago",
+}
+FOCUS_DEPT = next(d for d in DEPTS if d["name"] == "College of Engineering")
+_focus_burnout = next(b for b in BURNOUT if b["name"] == FOCUS_DEPT["name"])
+_focus_rating = next(r for r in DEPT_RESULTS if r["name"] == FOCUS_DEPT["name"])
+_focus_pipeline = next(p for p in PIPELINE if p["name"] == FOCUS_DEPT["name"])
+
+TODAY_TONES = {"Present": "success", "Late": "warning", "On leave": "info", "Not timed in": ""}
+# name, rank, status, today, rating last cycle, last feedback, flags
+TEAM = [
+    {"name": name, "initials": "".join(p[0] for p in name.split()[:2]), "rank": rank, "status": status,
+     "today": today, "today_tone": TODAY_TONES[today], "rating": rating, "feedback": feedback,
+     "feedback_overdue": overdue, "flags": flags, "supervisor_eval": sup}
+    for name, rank, status, today, rating, feedback, overdue, flags, sup in [
+        ("Dana Villanueva", "Assistant Professor", "Full-time", "Present", "4.00", "Sep 12", False,
+         ["Breakdown requested"], "Assigned"),
+        ("Casey Lim", "Instructor", "Probationary", "Late", "—", "Aug 20", False, ["Late 3 times", "201 file"],
+         "Assigned"),
+        ("Quinn Flores", "Associate Professor", "Full-time", "Present", "4.35", "Feb 3", True, ["Feedback overdue"],
+         "Not assigned"),
+        ("Noel Garcia", "Assistant Professor", "Full-time", "Present", "3.82", "Jan 27", True,
+         ["Feedback overdue", "Retention: Medium"], "Not assigned"),
+        ("Sky Tolentino", "Instructor", "Full-time", "Present", "4.10", "Sep 30", False, [], "Assigned"),
+        ("Billie Ocampo", "Assistant Professor", "Full-time", "Not timed in", "4.21", "Mar 9", True,
+         ["Feedback overdue"], "Not assigned"),
+        ("Ari Mercado", "Professor", "Full-time", "Present", "4.48", "Sep 5", False, [], "Assigned"),
+        ("Kit Lacson", "Instructor", "Part-time", "On leave", "3.95", "Feb 14", True, ["Feedback overdue"],
+         "Not assigned"),
+        ("Remy Salazar", "Associate Professor", "Full-time", "Late", "4.05", "Aug 28", False, ["Step due Dec 1"],
+         "Assigned"),
+        ("Jo Navarro", "Instructor", "Full-time", "Not timed in", "3.90", "Sep 22", False, ["Retention: Medium"],
+         "Assigned"),
+    ]
+]
+
+RETENTION_WATCH = [
+    {"name": "Noel Garcia", "level": "Medium", "tone": "warning",
+     "why": "6 years in rank, 4 expected · rating down 0.3 · no feedback in 8 months"},
+    {"name": "Jo Navarro", "level": "Medium", "tone": "warning",
+     "why": "Absences up against their own baseline · goals inactive 70 days"},
+]
+
+# Step 1 of leave, school-wide: waiting for the department head. HR can remind, not decide.
+STEP_ONE = [
+    {"name": name, "department": dept, "head": DEPT_HEADS[dept], "type": kind, "dates": dates, "days": days,
+     "waiting": _working_days(wait), "overdue": wait > LEAVE_WAIT_LIMIT, "filed": filed}
+    for name, dept, kind, dates, days, wait, filed in [
+        ("Billie Ocampo", "College of Engineering", "Vacation leave", "Oct 22–23", 2, 5, "Oct 5"),
+        ("Remy Salazar", "College of Engineering", "Sick leave", "Oct 7", 1, 4, "Oct 6"),
+        ("Jesse Uy", "College of Computing", "Vacation leave", "Nov 2–4", 2, 3, "Oct 7"),
+        ("Morgan Diaz", "College of Computing", "Vacation leave", "Oct 29", 1, 1, "Oct 9"),
+        ("Gail Soriano", "Basic Education", "Emergency leave", "Oct 12", 1, 0, "Oct 12"),
+        ("Taylor Ong", "College of Business", "Sick leave", "Oct 13", 1, 0, "Oct 12"),
+    ]
+]
+_step_one_focus = [r for r in STEP_ONE if r["department"] == FOCUS_DEPT["name"]]
+
+DEPARTMENT = {
+    "subtitle": f"{FOCUS_DEPT['name']} · {DEPT_HEADS[FOCUS_DEPT['name']]} · viewed by HR",
+    "dept": FOCUS_DEPT,
+    "head": DEPT_HEADS[FOCUS_DEPT["name"]],
+    "stats": [
+        {"label": "Present today", "value": FOCUS_DEPT["present"],
+         "hint": f"of {FOCUS_DEPT['expected']} expected · {FOCUS_DEPT['late']} late", "icon": "user-check",
+         "tone": "t-success"},
+        {"label": "Leave with the dean", "value": len(_step_one_focus),
+         "hint": f"{sum(r['overdue'] for r in _step_one_focus)} waiting over {LEAVE_WAIT_LIMIT} working days",
+         "icon": "clipboard-check", "tone": "t-warning"},
+        {"label": "Evaluators missing", "value": FOCUS_DEPT["unassigned"],
+         "hint": f"of {FOCUS_DEPT['headcount']} faculty · due Oct 23", "icon": "award", "tone": "t-info"},
+        {"label": "Burnout risk", "value": _focus_burnout["score"], "hint": f"{_focus_burnout['level']} · from 70 is High",
+         "icon": "heart-rate-monitor", "tone": "t-error"},
+    ],
+    "team_sample": TEAM[:6],
+    "team_total": FOCUS_DEPT["headcount"],
+    "feedback_overdue": sum(t["feedback_overdue"] for t in TEAM),
+    "retention": RETENTION_WATCH,
+    "burnout": _focus_burnout,
+    "rating": _focus_rating,
+    "school_overall": EVALUATIONS["school_overall"],
+    "pipeline": _focus_pipeline,
+    "step_one": _step_one_focus,
+    "evaluators": meter(FOCUS_DEPT["headcount"] - FOCUS_DEPT["unassigned"], FOCUS_DEPT["headcount"]),
+}
+
+APPROVALS = {
+    "rows": STEP_ONE,
+    "overdue": sum(r["overdue"] for r in STEP_ONE),
+    "with_hr": len(LEAVE_QUEUE),
+}
+
+TEAM_PAGE = {
+    "subtitle": f"{FOCUS_DEPT['name']} roster · showing {len(TEAM)} of {FOCUS_DEPT['headcount']}",
+    "dept": FOCUS_DEPT,
+    "head": DEPT_HEADS[FOCUS_DEPT["name"]],
+    "team": TEAM,
+    "supervisor_done": sum(t["supervisor_eval"] == "Assigned" for t in TEAM),
+    "feedback_notes": [
+        {"to": "Sky Tolentino", "by": DEPT_HEADS[FOCUS_DEPT["name"]], "when": "Sep 30",
+         "text": "Strong lab redesign for Circuits 1. Share the rubric with the other sections."},
+        {"to": "Ari Mercado", "by": DEPT_HEADS[FOCUS_DEPT["name"]], "when": "Sep 5",
+         "text": "Thank you for mentoring the two new instructors this term."},
+        {"to": "Dana Villanueva", "by": DEPT_HEADS[FOCUS_DEPT["name"]], "when": "Sep 12",
+         "text": "Return graded work within a week so students can act on it."},
+    ],
+    "recognition": [{"name": "Ari Mercado", "for": "Mentoring new faculty", "when": "Sep 18"}],
+}
+
+# ── HR dashboard: charts with a department filter ───────────────────────────
+# Every attendance chart is computed from ATTENDANCE_DAYS, once for the school and once per department,
+# so the filter only shows and hides finished SVGs. Closed days only (today is still open).
+
+_closed = {k: r for k, r in ATTENDANCE_DAYS.items() if k < _TODAY_KEY and k >= "2026-08-03"}  # since classes began
+WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
+
+
+def _scope(rec, i):
+    return rec if i is None else rec["departments"][i]
+
+
+def _weekly_rates(i):
+    weeks = {}
+    for k, rec in _closed.items():
+        d = date.fromisoformat(k)
+        monday = d - timedelta(days=d.weekday())
+        r = _scope(rec, i)
+        w = weeks.setdefault(monday, [0, 0])
+        w[0] += r["present"]
+        w[1] += r["staff"] - r["on_leave"]
+    return [(f"{m:%b} {m.day}", round(p / e * 100, 1)) for m, (p, e) in sorted(weeks.items())]
+
+
+def _late_by_weekday(i):
+    totals = dict.fromkeys(WEEKDAYS, 0)
+    for k, rec in _closed.items():
+        totals[WEEKDAYS[date.fromisoformat(k).weekday()]] += _scope(rec, i)["late"]
+    return list(totals.items())
+
+
+def _attendance_charts(i, name):
+    weekly = _weekly_rates(i)
+    return {"key": "school" if i is None else f"d{i}", "name": name,
+            "weekly": linechart(weekly, 90, 100, width=560, ticks=(90, 95, 100)),
+            "weekly_last": weekly[-1], "weekly_low": min(weekly, key=lambda w: w[1]),
+            "late": columns(_late_by_weekday(i), width=320)}
+
+
+HR_CHARTS = [_attendance_charts(None, "Whole school")] + [_attendance_charts(i, d["name"]) for i, d in enumerate(DEPTS)]
+
+RETENTION_COUNTS = {  # low, medium, high; adds up to each department's headcount
+    "College of Computing": (32, 4, 0), "College of Business": (34, 4, 1), "College of Education": (29, 3, 0),
+    "College of Engineering": (31, 6, 0), "College of Arts and Sciences": (42, 5, 0), "Basic Education": (30, 4, 0),
+    "Administrative offices": (21, 2, 0),
+}
+RETENTION = [
+    {"name": d["name"], "low": lo, "medium": mid, "high": hi, "total": lo + mid + hi,
+     "low_pct": round(lo / (lo + mid + hi) * 100, 1), "medium_pct": round(mid / (lo + mid + hi) * 100, 1),
+     "high_pct": round(hi / (lo + mid + hi) * 100, 1)}
+    for d in DEPTS for lo, mid, hi in [RETENTION_COUNTS[d["name"]]]
+]
+TENURE = [("Under 1", 22), ("1–3", 41), ("3–5", 52), ("5–10", 74), ("10–20", 45), ("20+", 14)]
+TURNOVER = [("AY 24–25 S1", 3.2), ("AY 24–25 S2", 4.4), ("AY 25–26 S1", 2.9), ("AY 25–26 S2", 4.0)]
+
+HR_DASHBOARD = {
+    "subtitle": "School-wide attendance, performance and wellness · 1st semester, since classes began Aug 3",
+    "filters": [{"key": c["key"], "name": c["name"]} for c in HR_CHARTS],
+    "charts": HR_CHARTS,
+    "stats": DASHBOARD["stats"][:1] + [
+        {"label": "Attendance rate", "value": ATTENDANCE["month"][0]["shown"], "hint": "October, closed days",
+         "icon": "calendar-time", "tone": ""},
+        {"label": "Turnover", "value": f"{TURNOVER[-1][1]}%", "hint": "Last semester · 10 of 250 left",
+         "icon": "user-off", "tone": "t-warning"},
+        {"label": "School rating", "value": EVALUATIONS["school_overall"], "hint": f"{LAST_CYCLE} · out of 5",
+         "icon": "award", "tone": "t-info"},
+    ],
+    "retention": RETENTION,
+    "retention_high": sum(r["high"] for r in RETENTION),
+    "retention_medium": sum(r["medium"] for r in RETENTION),
+    "tenure": columns(TENURE, width=320),
+    "turnover": linechart(TURNOVER, 0, 6, width=320, ticks=(0, 2, 4, 6)),
+    "burnout": BURNOUT[:3],
+    "stagnant": len(STAGNANT),
+    "ready": len(PROMOTION_READY),
+    "dept_ratings": DEPT_RESULTS,
+    "school_overall": EVALUATIONS["school_overall"],
+}
+
+# ── Computation requests ────────────────────────────────────────────────────
+
+RESOLVED_REQUESTS = [
+    {"name": "Drew Mendoza", "department": "College of Arts and Sciences", "kind": "Breakdown", "outcome": "Released",
+     "when": "Jun 30", "turnaround": _working_days(2)},
+    {"name": "Riley Pascual", "department": "College of Education", "kind": "Recheck",
+     "outcome": "Rating stays · remarks sent", "when": "Jul 14", "turnaround": _working_days(4)},
+    {"name": "Kai Bautista", "department": "Administrative offices", "kind": "Breakdown", "outcome": "Released",
+     "when": "Jul 2", "turnaround": _working_days(3)},
+    {"name": "Lee Navarro", "department": "College of Business", "kind": "Recheck",
+     "outcome": "Corrected 4.18 → 4.24", "when": "Jul 21", "turnaround": _working_days(5)},
+]
+
+COMPUTATIONS = {
+    "stats": [
+        {"label": "Open requests", "value": len(COMPUTATION_REQUESTS),
+         "hint": f"{sum(r['kind'] == 'Recheck' for r in COMPUTATION_REQUESTS)} recheck", "icon": "list-check", "tone": ""},
+        {"label": f"Over {COMPUTATION_WAIT_LIMIT} working days", "value": _requests_overdue, "hint": "Policy alert raised",
+         "icon": "alert-triangle", "tone": "t-error"},
+        {"label": "Average turnaround", "value": "3.5 days", "hint": "Working days, last 4 resolved", "icon": "clock",
+         "tone": "t-info"},
+    ],
+    "requests": COMPUTATION_REQUESTS,
+    "resolved": RESOLVED_REQUESTS,
+    "limit": COMPUTATION_WAIT_LIMIT,
+}
+
+# ── Alerts and interventions ────────────────────────────────────────────────
+# Each alert keeps its factor breakdown so the page can say why it was raised (plan §5).
+
+RETENTION_FACTORS = [  # label, weight %, score 0–100, detail (plan §5.2: no wellness data)
+    ("Years in current rank vs expected", 30, 90, "6 years as Assistant Professor, 4 expected"),
+    ("Evaluation trend falling", 20, 80, "4.31 → 4.05 → 3.88 over three cycles"),
+    ("Absences or tardiness vs own baseline", 20, 55, "5 late arrivals this term, usually 1"),
+    ("Goals inactive 60+ days", 15, 70, "No goal updated since July"),
+    ("No feedback or recognition in 6+ months", 15, 60, "Last feedback note in March"),
+]
+_retention_score = round(sum(w * s for _, w, s, _ in RETENTION_FACTORS) / 100)
+
+ALERT_DETAILS = [
+    {**ALERTS[0], "id": "alert-1", "kind": "Burnout", "raised": "Oct 5", "owner": CURRENT_USER["name"],
+     "intervention": "Workload review with the dean · follow-up Oct 20", "status": "In progress", "status_tone": "info",
+     "score": _focus_burnout["score"], "projection": "Stress has risen four weeks in a row; midterms start Oct 19.",
+     "factors": _focus_burnout["factors"]},
+    {**ALERTS[1], "id": "alert-2", "kind": "Retention", "raised": "Oct 7", "owner": "", "intervention": "",
+     "status": "No intervention yet", "status_tone": "", "subject": "Toni Bernardo · Assistant Professor",
+     "score": _retention_score, "projection": "Visible to HR and the department head only, never to the employee.",
+     "factors": [{"label": label, "weight": w, "score": s, "points": round(w * s / 100, 1), "source": detail,
+                  **meter(s, 100)} for label, w, s, detail in RETENTION_FACTORS]},
+    {**ALERTS[2], "id": "alert-3", "kind": "Burnout", "raised": "Oct 9", "owner": "Wellness office",
+     "intervention": "Stress-management session after midterms", "status": "Planned", "status_tone": ""},
+    {**ALERTS[3], "id": "alert-4", "kind": "Stagnation", "raised": "Sep 28", "owner": "", "intervention": "",
+     "status": "No intervention yet", "status_tone": ""},
+    {**ALERTS[4], "id": "alert-5", "kind": "Policy", "raised": "Oct 12", "owner": CURRENT_USER["name"],
+     "intervention": "Release the breakdown", "status": "Assigned to you", "status_tone": "warning"},
+]
+
+ALERTS_PAGE = {
+    "alerts": ALERT_DETAILS,
+    "focus": ALERT_DETAILS[0],
+    "retention": ALERT_DETAILS[1],
+    "high": _alerts_high,
+    "interventions": WELLNESS["interventions"],
+    "owners": [CURRENT_USER["name"], "Wellness office", DEPT_HEADS[FOCUS_DEPT["name"]]],
+}
+
+# ── Employee directory ──────────────────────────────────────────────────────
+
+_extra_people = [  # name, position, department, status, since
+    ("Morgan Diaz", "Instructor", "College of Computing", "Full-time", "Aug 2022"),
+    ("Jesse Uy", "Assistant Professor", "College of Computing", "Full-time", "Jun 2019"),
+    ("Lee Navarro", "Assistant Professor", "College of Business", "Full-time", "Jun 2018"),
+    ("Toni Bernardo", "Assistant Professor", "College of Business", "Full-time", "Jun 2017"),
+    ("Taylor Ong", "Instructor", "College of Business", "Full-time", "Aug 2023"),
+    ("Riley Pascual", "Assistant Professor", "College of Education", "Full-time", "Jun 2020"),
+    ("Reese Valdez", "Instructor", "College of Arts and Sciences", "Full-time", "Aug 2022"),
+    ("Sam Torres", "Instructor", "College of Arts and Sciences", "Full-time", "Aug 2021"),
+    ("Frankie Castro", "Assistant Professor", "College of Arts and Sciences", "Full-time", "Jun 2015"),
+    ("Pat Gomez", "Teacher I", "Basic Education", "Full-time", "Jun 2023"),
+    ("Gail Soriano", "Teacher III", "Basic Education", "Full-time", "Jun 2014"),
+    ("Mika Santiago", "Director", "Administrative offices", "Full-time", "Jan 2008"),
+]
+DIRECTORY_ROWS = sorted(
+    [{k: e[k] for k in ("name", "initials", "position", "department", "status", "since", "tone")} for e in EMPLOYEES]
+    + [{"name": t["name"], "initials": t["initials"], "position": t["rank"], "department": FOCUS_DEPT["name"],
+        "status": t["status"], "since": "", "tone": STATUS_TONE[t["status"]]} for t in TEAM
+       if t["name"] not in {e["name"] for e in EMPLOYEES}]
+    + [{"name": n, "initials": "".join(p[0] for p in n.split()), "position": pos, "department": dept, "status": st,
+        "since": since, "tone": STATUS_TONE[st]} for n, pos, dept, st, since in _extra_people],
+    key=lambda r: r["name"].split()[-1],
+)
+
+DIRECTORY = {
+    "rows": DIRECTORY_ROWS,
+    "departments": [d["name"] for d in DEPTS],
+    "statuses": [s for s, _ in STATUS_COUNTS],
+    "total": SCHOOL["headcount"],
+}
+
+# ── Leave processing (step 2) ───────────────────────────────────────────────
+# Each request with the balance it draws from. The department head's remark comes with it.
+
+_LEAVE_LEFT = {"Vacation leave": 15, "Sick leave": 10, "Emergency leave": 3}
+_balances = [9, 6, 11, 2, 8, 12, 15, 7, 4]  # days left of that type, per LEAVE_QUEUE row
+_remarks = ["Classes covered by Riley Pascual.", "Medical certificate attached.", "Before the evaluation period.",
+            "Family emergency; confirmed by phone.", "", "Office coverage arranged.", "", "", "Medical certificate attached."]
+LEAVE_PROCESSING = {
+    "rows": [
+        {**r, "steps": _steps(("Department head", "done"), ("HR", "pending")), "left": left,
+         "of": _LEAVE_LEFT[r["type"]], "after": left - r["days"], "short": left < r["days"],
+         "remark": remark, "head": DEPT_HEADS[r["department"]],
+         "attachment": r["type"] == "Sick leave"}
+        for r, left, remark in zip(LEAVE_QUEUE, _balances, _remarks)
+    ],
+    "overdue": _leave_overdue,
+    "limit": LEAVE_WAIT_LIMIT,
+    "step_one": len(STEP_ONE),
+}
+
+# ── Announcements and reports ───────────────────────────────────────────────
+
+ACK_BY_DEPT = [(d["name"], ack) for d, ack in zip(DEPTS, [33, 31, 30, 24, 40, 27, 16])]
+COMMUNICATIONS = {
+    "audiences": MESSAGES["audiences"],
+    "sent": DASHBOARD["announcements"],
+    "ack_title": DASHBOARD["announcements"][0]["title"],
+    "ack": [{"name": name, **meter(n, d["headcount"])} for (name, n), d in zip(ACK_BY_DEPT, DEPTS)],
+    "ack_total": meter(sum(n for _, n in ACK_BY_DEPT), SCHOOL["headcount"]),
+    "ack_missing": SCHOOL["headcount"] - sum(n for _, n in ACK_BY_DEPT),
+    "scheduled": [
+        {"title": "Midterm week reminders: no leave filing for Oct 19–23", "kind": "Memo", "audience": "All employees",
+         "when": "Sends Oct 14, 7:00 AM"},
+        {"title": "HMO renewal: update your dependents", "kind": "Policy", "audience": "All employees",
+         "when": "Draft"},
+    ],
+    "reports": [
+        {"name": "Monthly attendance by department", "format": "CSV", "last": "Oct 1", "icon": "calendar-time"},
+        {"name": "Leave used by type", "format": "PDF", "last": "Sep 30", "icon": "clipboard-list"},
+        {"name": "Evaluation results summary", "format": "PDF", "last": "Jun 30", "icon": "award"},
+        {"name": "Remittance summary", "format": "CSV", "last": "Oct 10", "icon": "cash"},
+    ],
+    "concerns_new": MESSAGES["concerns_new"],
+    "concerns": len(CONCERNS),
+}
+
 BY_PAGE = {"dashboard": DASHBOARD, "records": RECORDS, "attendance": ATTENDANCE, "wellness": WELLNESS,
-           "messages": MESSAGES, "assistant": ASSISTANT}
+           "messages": MESSAGES, "assistant": ASSISTANT, "career": CAREER, "evaluations": EVALUATIONS,
+           "breakdown": BREAKDOWN, "department": DEPARTMENT, "approvals": APPROVALS, "team": TEAM_PAGE,
+           "hr_dashboard": HR_DASHBOARD, "computation_requests": COMPUTATIONS, "alerts": ALERTS_PAGE,
+           "directory": DIRECTORY, "leave_processing": LEAVE_PROCESSING, "communications": COMMUNICATIONS}
 
 
 def for_page(name):

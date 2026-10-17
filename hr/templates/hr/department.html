@@ -1,0 +1,134 @@
+{% extends "hr/base.html" %}
+{# Department overview, as HR sees one department (plan §9.2 Department dashboard; §5.1–5.3). Data: hr/sample_data.py DEPARTMENT. #}
+
+{% block actions %}
+<div class="ds-actions">
+  <a class="ds-btn ds-btn-secondary" href="{% url 'hr:messages' %}"><i class="ti ti-message-2" aria-hidden="true"></i>Message {{ head }}</a>
+  <a class="ds-btn ds-btn-primary" href="{% url 'hr:alerts' %}"><i class="ti ti-alert-triangle" aria-hidden="true"></i>Open the burnout alert</a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+<div class="fms-grid is-stats">
+  {% for stat in stats %}
+  <div class="ds-card ds-stat">
+    <div class="ds-stat-icon {{ stat.tone }}" aria-hidden="true"><i class="ti ti-{{ stat.icon }}"></i></div>
+    <div class="fms-grow">
+      <div class="ds-stat-value">{{ stat.value }}</div>
+      <div class="ds-stat-label">{{ stat.label }}</div>
+      <div class="ds-stat-hint">{{ stat.hint }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="fms-dash">
+  <div class="fms-col">
+
+    <section class="ds-card ds-panel p-none" aria-labelledby="today-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="today-title">Team today</h2>
+          <p class="ds-panel-sub">Showing {{ team_sample|length }} of {{ team_total }} · {{ dept.present }} of {{ dept.expected }} present</p>
+        </div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:team' %}">Full roster</a>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Employee</th><th scope="col">Today</th><th scope="col" class="a-right">Last rating</th><th scope="col">Flags</th></tr></thead>
+          <tbody>
+            {% for t in team_sample %}
+            <tr>
+              <td><div class="ds-cell-person"><div class="ds-avatar" aria-hidden="true">{{ t.initials }}</div><div><div class="ds-cell-strong">{{ t.name }}</div><div class="ds-cell-sub">{{ t.rank }}</div></div></div></td>
+              <td><span class="ds-status{% if t.today_tone %} v-{{ t.today_tone }}{% endif %}"><span class="ds-dot{% if t.today_tone %} d-{{ t.today_tone }}{% endif %}"></span>{{ t.today }}</span></td>
+              <td class="a-right">{{ t.rating }}</td>
+              <td><div class="fms-row">{% for flag in t.flags %}<span class="ds-badge s-sm">{{ flag }}</span>{% empty %}<span class="fms-caption">None</span>{% endfor %}</div></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="wellness-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="wellness-title">Department wellness</h2>
+          <p class="ds-panel-sub">Burnout score {{ burnout.score }} · {{ dept.headcount }} people, so the group is large enough to show</p>
+        </div>
+        <span class="ds-badge v-{{ burnout.tone }}"><span class="ds-dot d-{{ burnout.tone }}"></span>{{ burnout.level }}</span>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for factor in burnout.factors %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ factor.label }}</span><span class="fms-meter-value"><strong>{{ factor.points }}</strong> pts · {{ factor.score }} × {{ factor.weight }}%</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ factor.pct }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="fms-col is-side">
+
+    <section class="ds-card ds-panel" aria-labelledby="leave-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="leave-title">Leave with the dean</h2>
+          <p class="ds-panel-sub">Step 1 · HR takes over after the dean decides</p>
+        </div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:approvals' %}">All departments</a>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for r in step_one %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ r.name }}</span><span class="fms-caption">{{ r.type }} · {{ r.dates }}</span></span>{% if r.overdue %}<span class="ds-badge v-warning s-sm">{{ r.waiting }}</span>{% else %}<span class="ds-badge s-sm">{{ r.waiting }}</span>{% endif %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="eval-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="eval-title">Evaluations</h2>
+          <p class="ds-panel-sub">Assignment due Oct 23</p>
+        </div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <div class="fms-meter">
+          <div class="fms-meter-head"><span>Evaluators assigned</span><span class="fms-meter-value"><strong>{{ evaluators.value }}</strong> of {{ evaluators.total }}</span></div>
+          <div class="fms-meter-track is-warning" aria-hidden="true"><i style="width: {{ evaluators.pct }}%"></i></div>
+        </div>
+        <ul class="fms-list">
+          <li><span>Last cycle's average</span><span class="fms-meter-value"><strong>{{ rating.overall }}</strong> · school {{ school_overall }}</span></li>
+          <li><span>Feedback overdue</span><span class="ds-badge v-warning s-sm">{{ feedback_overdue }} people</span></li>
+          <li><span>Promotion pipeline</span><span class="fms-caption">{{ pipeline.ready }} ready · {{ pipeline.mid }} at 50–99%</span></li>
+        </ul>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Reminder sent to {{ head }}: {{ dept.unassigned }} faculty still need evaluators by Oct 23."><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind the dean</button>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="retention-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="retention-title">Retention watchlist</h2>
+          <p class="ds-panel-sub">HR and the dean only · never shown to the employee</p>
+        </div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for r in retention %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ r.name }}</span><span class="fms-caption">{{ r.why }}</span></span><span class="ds-badge v-{{ r.tone }} s-sm">{{ r.level }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+  </div>
+</div>
+{% endblock %}

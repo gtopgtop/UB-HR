@@ -1,0 +1,42 @@
+{% extends "hr/base.html" %}
+{# Leave approvals, step 1, as HR sees it (plan §3 Module 2, §5.4, §7.3 rule 8). Department heads decide step 1; HR
+   watches the aging and reminds. Data: hr/sample_data.py APPROVALS. #}
+
+{% block actions %}
+<div class="ds-actions">
+  <a class="ds-btn ds-btn-primary" href="{% url 'hr:leave_processing' %}"><i class="ti ti-file-check" aria-hidden="true"></i>Step 2 · {{ with_hr }} with HR</a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+<div class="ds-alert v-info" role="status"><i class="ti ti-info-circle" aria-hidden="true"></i><div class="ds-alert-body">Department heads approve step 1, and HR takes over at step 2. A department head's own leave skips step 1 and comes straight to HR. Requests waiting more than 3 working days alert the approver.</div></div>
+
+<section class="ds-card ds-panel p-none" aria-labelledby="step1-title">
+  <div class="ds-panel-head">
+    <div class="fms-min0">
+      <h2 class="ds-panel-title" id="step1-title">Waiting for department heads</h2>
+      <p class="ds-panel-sub">{{ rows|length }} requests · {{ overdue }} over 3 working days · oldest first</p>
+    </div>
+  </div>
+  <div class="ds-table-wrap">
+    <table class="ds-table">
+      <thead><tr><th scope="col">Employee</th><th scope="col">Leave</th><th scope="col" class="a-right">Days</th><th scope="col">Approver</th><th scope="col">Filed</th><th scope="col">Waiting</th><th scope="col" class="a-right"><span class="ds-sr-only">Action</span></th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td><div class="ds-cell-strong">{{ r.name }}</div><div class="ds-cell-sub">{{ r.department }}</div></td>
+          <td><div class="ds-cell-strong">{{ r.type }}</div><div class="ds-cell-sub">{{ r.dates }}</div></td>
+          <td class="a-right">{{ r.days }}</td>
+          <td>{{ r.head }}</td>
+          <td>{{ r.filed }}</td>
+          <td>{% if r.overdue %}<span class="ds-status v-warning"><span class="ds-dot d-warning"></span>{{ r.waiting }}</span>{% else %}<span class="ds-status"><span class="ds-dot"></span>{{ r.waiting }}</span>{% endif %}</td>
+          <td class="a-right">{% if r.overdue %}<button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Reminder sent to {{ r.head }} about {{ r.name }}'s {{ r.type|lower }}." aria-label="Remind {{ r.head }} about {{ r.name }}"><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind</button>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "hr/base.html" %}
+{# Evaluations, HR officer view (plan §3 Module 3, §6.3, §7.4: "V All, run cycles"). Data: hr/sample_data.py EVALUATIONS. #}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-table-export" aria-hidden="true"></i>Export results</button>
+  <button type="button" class="ds-btn ds-btn-primary"><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind department heads</button>
+</div>
+{% endblock %}
+
+{% block content %}
+<section class="ds-card ds-panel" aria-labelledby="cycle-title">
+  <div class="ds-panel-head">
+    <div class="fms-min0">
+      <h2 class="ds-panel-title" id="cycle-title">Current cycle</h2>
+      <p class="ds-panel-sub">{{ cycle.name }} · weights: {% for label, weight in weights %}{{ label|lower }} {{ weight }}%{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    </div>
+    <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:attendance' %}#calendar">Calendar</a>
+  </div>
+  <div class="ds-panel-body ds-stack">
+    <ol class="fms-steps" aria-label="Evaluation cycle stages">
+      {% for step in cycle.steps %}
+      <li class="fms-step is-{{ step.state }}"{% if step.state == 'current' %} aria-current="step"{% endif %}>
+        <span class="fms-step-dot" aria-hidden="true">{% if step.state == 'done' %}<i class="ti ti-check"></i>{% endif %}</span>
+        <span class="fms-step-title">{{ step.title }}</span>
+        <span class="fms-caption">{{ step.caption }}</span>
+      </li>
+      {% endfor %}
+    </ol>
+    <div class="fms-grid is-halves">
+      <div class="fms-meter">
+        <div class="fms-meter-head"><span>Employees with evaluators assigned</span><span class="fms-meter-value"><strong>{{ cycle.progress.value }}</strong> of {{ cycle.progress.total }}</span></div>
+        <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ cycle.progress.pct }}%"></i></div>
+      </div>
+      <ul class="fms-list">
+        {% for dept in cycle.departments %}
+        <li><span>{{ dept.label }}</span>{% if dept.done %}<span class="ds-badge v-success s-sm"><i class="ti ti-check" aria-hidden="true"></i>{{ dept.note }}</span>{% else %}<span class="ds-badge v-warning s-sm">{{ dept.note }}</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="fms-dash">
+  <div class="fms-col">
+    <section class="ds-card ds-panel p-none" aria-labelledby="depts-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="depts-title">Results by department</h2>
+          <p class="ds-panel-sub">{{ last_cycle }} · school average {{ school_overall }}, weighted by headcount</p>
+        </div>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table fms-num">
+          <thead><tr><th scope="col">Department</th><th scope="col" class="a-right">Students</th><th scope="col" class="a-right">Peers</th><th scope="col" class="a-right">Supervisor</th><th scope="col" class="a-right">Weights</th><th scope="col" class="a-right">Overall</th><th scope="col">vs school</th></tr></thead>
+          <tbody>
+            {% for dept in departments %}
+            <tr>
+              <th scope="row" class="ds-cell-strong">{{ dept.name }}</th>
+              <td class="a-right">{{ dept.student|default:"—" }}</td>
+              <td class="a-right">{{ dept.peer }}</td>
+              <td class="a-right">{{ dept.supervisor }}</td>
+              <td class="a-right">{{ dept.weights }}</td>
+              <td class="a-right ds-cell-strong">{{ dept.overall }}</td>
+              <td><span class="ds-status v-{{ dept.tone }}"><span class="ds-dot d-{{ dept.tone }}"></span>{{ dept.delta }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot><tr><th scope="row">Whole school</th><td></td><td></td><td></td><td></td><td class="a-right">{{ school_overall }}</td><td></td></tr></tfoot>
+        </table>
+      </div>
+      <p class="fms-caption fms-table-note">Non-teaching staff have no student evaluations, so their result weighs peers 40% and the supervisor 60%.</p>
+    </section>
+
+    <section class="ds-card ds-panel p-none" aria-labelledby="results-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="results-title">Individual results</h2>
+          <p class="ds-panel-sub">{{ last_cycle }} · showing {{ results|length }} of {{ released.total }}</p>
+        </div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:breakdown' %}">Breakdown requests · {{ requests_open }}</a>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Employee</th><th scope="col" class="a-right">Overall</th><th scope="col">Acknowledged</th><th scope="col">Breakdown</th></tr></thead>
+          <tbody>
+            {% for r in results %}
+            <tr>
+              <td><div class="ds-cell-strong">{{ r.name }}</div><div class="ds-cell-sub">{{ r.position }} · {{ r.department }}</div></td>
+              <td class="a-right ds-cell-strong">{{ r.overall }}</td>
+              <td>{% if r.acknowledged %}<span class="ds-status v-success"><span class="ds-dot d-success"></span>{{ r.acknowledged }}</span>{% elif r.overall == "—" %}<span class="ds-status"><span class="ds-dot"></span>No result yet</span>{% else %}<span class="ds-status v-warning"><span class="ds-dot d-warning"></span>Not yet</span>{% endif %}</td>
+              <td>{% if r.tone == "warning" %}<a class="fms-link" href="{% url 'hr:breakdown' %}">{{ r.breakdown }}</a>{% else %}<span class="ds-status{% if r.tone %} v-{{ r.tone }}{% endif %}"><span class="ds-dot{% if r.tone %} d-{{ r.tone }}{% endif %}"></span>{{ r.breakdown }}</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="fms-col is-side">
+    <section class="ds-card ds-panel" aria-labelledby="ack-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="ack-title">{{ last_cycle }} results</h2>
+          <p class="ds-panel-sub">Released Jun 18 · employees acknowledge each result</p>
+        </div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <div class="fms-meter">
+          <div class="fms-meter-head"><span>{{ released.label }}</span><span class="fms-meter-value"><strong>{{ released.value }}</strong> of {{ released.total }}</span></div>
+          <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ released.pct }}%"></i></div>
+        </div>
+        <div class="fms-row fms-between">
+          <span class="fms-muted">{{ unacknowledged }} have not acknowledged yet</span>
+          <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="weights-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="weights-title">How a result is computed</h2>
+          <p class="ds-panel-sub">Set by HR Admin for each cycle</p>
+        </div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <div class="fms-meters">
+          {% for label, weight in weights %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ label }}</span><span class="fms-meter-value"><strong>{{ weight }}%</strong></span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ weight }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="fms-muted">Student and peer answers stay anonymous. If either group has fewer than 5 respondents, the two are shown as one combined figure.</p>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,203 @@
+{% extends "hr/base.html" %}
+{% load static %}
+{# HR dashboard: charts with a department filter, export, and the burnout, retention and stagnation panels
+   (plan §3 Module 6, §6). Server-drawn SVG; the filter only shows and hides finished charts.
+   Data: hr/sample_data.py HR_DASHBOARD. #}
+
+{% block scripts %}<script src="{% static 'hr/js/hr_dashboard.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <a class="ds-btn ds-btn-primary" href="{% url 'hr:attendance' %}#departments"><i class="ti ti-table-export" aria-hidden="true"></i>Export attendance</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="fms-grid is-stats">
+  {% for stat in stats %}
+  <div class="ds-card ds-stat">
+    <div class="ds-stat-icon {{ stat.tone }}" aria-hidden="true"><i class="ti ti-{{ stat.icon }}"></i></div>
+    <div class="fms-grow">
+      <div class="ds-stat-value">{{ stat.value }}</div>
+      <div class="ds-stat-label">{{ stat.label }}</div>
+      <div class="ds-stat-hint">{{ stat.hint }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<section class="ds-card ds-panel" aria-labelledby="attendance-title">
+  <div class="ds-panel-head">
+    <div class="fms-min0">
+      <h2 class="ds-panel-title" id="attendance-title">Attendance</h2>
+      <p class="ds-panel-sub">Closed working days since classes began, Aug 3</p>
+    </div>
+    <div class="ds-field fms-inline-field">
+      <label class="ds-label" for="chart-dept">Department</label>
+      <select class="ds-control" id="chart-dept" data-chart-filter>
+        {% for f in filters %}<option value="{{ f.key }}">{{ f.name }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="ds-panel-body">
+    {% for c in charts %}
+    <div class="fms-chart-set" data-chart-set="{{ c.key }}"{% if not forloop.first %} hidden{% endif %}>
+      <figure class="fms-chart is-wide">
+        <figcaption><span class="fms-schedule-title">Attendance rate by week</span><span class="fms-caption">{{ c.name }} · lowest: week of {{ c.weekly_low.0 }}, {{ c.weekly_low.1 }}%</span></figcaption>
+        <svg viewBox="0 0 {{ c.weekly.width }} {{ c.weekly.height }}" role="img" aria-label="{{ c.name }}, attendance rate by week: {{ c.weekly.summary }}">
+          {% for t in c.weekly.ticks %}<line class="fms-grid-line" x1="0" x2="{{ c.weekly.width }}" y1="{{ t.y }}" y2="{{ t.y }}"/><text class="fms-tick" x="0" y="{{ t.y|add:'-4' }}">{{ t.value }}%</text>{% endfor %}
+          <polyline class="fms-line" points="{{ c.weekly.points }}"/>
+          {% for d in c.weekly.dots %}
+          <circle class="fms-dot{% if forloop.last %} is-current{% endif %}" cx="{{ d.x }}" cy="{{ d.y }}" r="4"/>
+          <circle class="fms-hit" cx="{{ d.x }}" cy="{{ d.y }}" r="14" tabindex="0" data-tip="Week of {{ d.label }}: {{ d.value }}%"><title>Week of {{ d.label }}: {{ d.value }}%</title></circle>
+          {% if forloop.counter0|divisibleby:2 %}<text class="fms-tick" x="{{ d.x }}" y="{{ c.weekly.height|add:'-4' }}" text-anchor="middle">{{ d.label }}</text>{% endif %}
+          {% endfor %}
+        </svg>
+      </figure>
+
+      <figure class="fms-chart">
+        <figcaption><span class="fms-schedule-title">Late arrivals by weekday</span><span class="fms-caption">{{ c.name }} · total since Aug 3</span></figcaption>
+        <svg viewBox="0 0 {{ c.late.width }} {{ c.late.height }}" role="img" aria-label="{{ c.name }}, late arrivals by weekday: {{ c.late.summary }}">
+          <line class="fms-baseline" x1="0" x2="{{ c.late.width }}" y1="{{ c.late.base }}" y2="{{ c.late.base }}"/>
+          {% for b in c.late.bars %}
+          {% if b.peak %}<text class="fms-value" x="{{ b.cx }}" y="{{ b.y|add:'-6' }}" text-anchor="middle">{{ b.value }}</text>{% endif %}
+          <path class="fms-bar{% if b.peak %} is-peak{% endif %}" d="{{ b.path }}"/>
+          <rect class="fms-hit" x="{{ b.band_x }}" y="0" width="{{ b.band_w }}" height="{{ c.late.base }}" tabindex="0" data-tip="{{ b.label }}: {{ b.value }} late arrivals"><title>{{ b.label }}: {{ b.value }} late arrivals</title></rect>
+          <text class="fms-tick" x="{{ b.cx }}" y="{{ c.late.height|add:'-4' }}" text-anchor="middle">{{ b.label }}</text>
+          {% endfor %}
+        </svg>
+      </figure>
+
+      <details class="fms-table-view">
+        <summary>Show as a table</summary>
+        <div class="ds-table-wrap">
+          <table class="ds-table fms-num">
+            <thead><tr><th scope="col">Week of</th>{% for d in c.weekly.dots %}<th scope="col" class="a-right">{{ d.label }}</th>{% endfor %}</tr></thead>
+            <tbody><tr><th scope="row">Attendance rate</th>{% for d in c.weekly.dots %}<td class="a-right">{{ d.value }}%</td>{% endfor %}</tr></tbody>
+          </table>
+          <table class="ds-table fms-num">
+            <thead><tr><th scope="col">Weekday</th>{% for b in c.late.bars %}<th scope="col" class="a-right">{{ b.label }}</th>{% endfor %}</tr></thead>
+            <tbody><tr><th scope="row">Late arrivals</th>{% for b in c.late.bars %}<td class="a-right">{{ b.value }}</td>{% endfor %}</tr></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="fms-dash">
+  <div class="fms-col">
+
+    <section class="ds-card ds-panel" aria-labelledby="retention-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="retention-title">Retention risk by department</h2>
+          <p class="ds-panel-sub">{{ retention_high }} high · {{ retention_medium }} medium · no wellness data is used</p>
+        </div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:alerts' %}">Alerts</a>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <ul class="fms-legend" aria-hidden="true">
+          <li><span class="fms-swatch is-risk-low"></span>Low</li>
+          <li><span class="fms-swatch is-risk-mid"></span>Medium</li>
+          <li><span class="fms-swatch is-risk-high"></span>High</li>
+        </ul>
+        <div class="fms-meters">
+          {% for r in retention %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ r.name }}</span><span class="fms-meter-value"><strong>{{ r.medium }}</strong> medium{% if r.high %} · <strong>{{ r.high }}</strong> high{% endif %}</span></div>
+            <div class="fms-stackbar" role="img" aria-label="{{ r.name }}: {{ r.low }} low, {{ r.medium }} medium, {{ r.high }} high">
+              <i class="is-risk-low" style="width: {{ r.low_pct }}%"></i><i class="is-risk-mid" style="width: {{ r.medium_pct }}%"></i>{% if r.high %}<i class="is-risk-high" style="width: {{ r.high_pct }}%"></i>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <div class="fms-grid is-halves">
+      <section class="ds-card ds-panel" aria-labelledby="tenure-title">
+        <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="tenure-title">Tenure</h2><p class="ds-panel-sub">Years at the school · all employees</p></div></div>
+        <div class="ds-panel-body">
+          <figure class="fms-chart">
+            <svg viewBox="0 0 {{ tenure.width }} {{ tenure.height }}" role="img" aria-label="Employees by years at the school: {{ tenure.summary }}">
+              <line class="fms-baseline" x1="0" x2="{{ tenure.width }}" y1="{{ tenure.base }}" y2="{{ tenure.base }}"/>
+              {% for b in tenure.bars %}
+              {% if b.peak %}<text class="fms-value" x="{{ b.cx }}" y="{{ b.y|add:'-6' }}" text-anchor="middle">{{ b.value }}</text>{% endif %}
+              <path class="fms-bar{% if b.peak %} is-peak{% endif %}" d="{{ b.path }}"/>
+              <rect class="fms-hit" x="{{ b.band_x }}" y="0" width="{{ b.band_w }}" height="{{ tenure.base }}" tabindex="0" data-tip="{{ b.label }} years: {{ b.value }} employees"><title>{{ b.label }} years: {{ b.value }} employees</title></rect>
+              <text class="fms-tick" x="{{ b.cx }}" y="{{ tenure.height|add:'-4' }}" text-anchor="middle">{{ b.label }}</text>
+              {% endfor %}
+            </svg>
+          </figure>
+        </div>
+      </section>
+
+      <section class="ds-card ds-panel" aria-labelledby="turnover-title">
+        <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="turnover-title">Turnover per semester</h2><p class="ds-panel-sub">Share of employees who left</p></div></div>
+        <div class="ds-panel-body">
+          <figure class="fms-chart">
+            <svg viewBox="0 0 {{ turnover.width }} {{ turnover.height }}" role="img" aria-label="Turnover by semester: {{ turnover.summary }}">
+              {% for t in turnover.ticks %}<line class="fms-grid-line" x1="0" x2="{{ turnover.width }}" y1="{{ t.y }}" y2="{{ t.y }}"/><text class="fms-tick" x="0" y="{{ t.y|add:'-4' }}">{{ t.value }}%</text>{% endfor %}
+              <polyline class="fms-line" points="{{ turnover.points }}"/>
+              {% for d in turnover.dots %}
+              <circle class="fms-dot{% if forloop.last %} is-current{% endif %}" cx="{{ d.x }}" cy="{{ d.y }}" r="4"/>
+              <circle class="fms-hit" cx="{{ d.x }}" cy="{{ d.y }}" r="14" tabindex="0" data-tip="{{ d.label }}: {{ d.value }}%"><title>{{ d.label }}: {{ d.value }}%</title></circle>
+              <text class="fms-tick" x="{{ d.x }}" y="{{ turnover.height|add:'-4' }}" text-anchor="{% if forloop.first %}start{% elif forloop.last %}end{% else %}middle{% endif %}">{{ d.label }}</text>
+              {% endfor %}
+            </svg>
+          </figure>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="fms-col is-side">
+    <section class="ds-card ds-panel" aria-labelledby="burnout-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="burnout-title">Burnout</h2><p class="ds-panel-sub">Highest three departments</p></div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:wellness' %}">Wellness</a>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for b in burnout %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ b.name }}</span><span class="fms-meter-value"><strong>{{ b.score }}</strong> <span class="ds-badge v-{{ b.tone }} s-sm">{{ b.level }}</span></span></div>
+            <div class="fms-meter-track is-{{ b.tone }}" aria-hidden="true"><i style="width: {{ b.pct }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="career-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="career-title">Career health</h2><p class="ds-panel-sub">Stagnation and promotion readiness</p></div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:career' %}">Career</a>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          <li><span>Stagnant</span><span class="ds-badge v-warning s-sm">{{ stagnant }} people</span></li>
+          <li><span>Promotion-ready</span><span class="ds-badge v-success s-sm">{{ ready }} people</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="perf-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="perf-title">Performance by department</h2><p class="ds-panel-sub">Last cycle · school {{ school_overall }}</p></div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:evaluations' %}">Evaluations</a>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for r in dept_ratings %}
+          <li><span>{{ r.name }}</span><span class="fms-meter-value"><strong>{{ r.overall }}</strong> <span class="ds-status v-{{ r.tone }}"><span class="ds-dot d-{{ r.tone }}"></span>{{ r.delta }}</span></span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="fms-tip" role="tooltip" data-chart-tip hidden></div>
+{% endblock %}

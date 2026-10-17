@@ -124,6 +124,20 @@
     btn.addEventListener("click", () => btn.closest(".ds-alert").remove());
   });
 
+  // Page flash: the success alert at the top of a page. A button with data-say shows its message
+  // there (the prototype's stand-in for an action that would be saved), then disables itself.
+  const flash = document.querySelector("[data-flash]");
+  if (flash) {
+    flash.querySelector("[data-flash-close]")?.addEventListener("click", () => { flash.hidden = true; });
+    document.querySelectorAll("[data-say]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        flash.querySelector("[data-flash-text]").textContent = btn.dataset.say;
+        flash.hidden = false;
+        if (!("sayRepeat" in btn.dataset)) btn.disabled = true;
+      });
+    });
+  }
+
   // Dialogs: native <dialog>. A click on the scrim closes it; focus returns to the opener.
   document.querySelectorAll("[data-dialog-open]").forEach((btn) => {
     btn.addEventListener("click", () => document.getElementById(btn.dataset.dialogOpen).showModal());

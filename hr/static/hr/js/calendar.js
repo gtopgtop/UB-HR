@@ -577,7 +577,7 @@
     const rows = [...state.school].sort((a, b) => a.start_date.localeCompare(b.start_date))
       .map((ev) => [ev.start_date, ev.end_date, ev.title, meta(ev.event_type).label, ev.description ?? "", data.school_year]);
     const csv = [header, ...rows].map((r) => r.map(quoteCSV).join(",")).join("\r\n");
-    const url = URL.createObjectURL(new Blob(["﻿", csv], { type: "text/csv;charset=utf-8;" })); // BOM so Excel reads UTF-8
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" })); // BOM so Excel reads UTF-8
     const a = document.createElement("a");
     a.href = url;
     a.download = `academic-calendar-SY${data.school_year}.csv`;

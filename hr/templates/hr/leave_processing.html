@@ -1,0 +1,73 @@
+{% extends "hr/base.html" %}
+{% load static %}
+{# Leave processing, step 2 of the approval chain (plan §3 Module 2, §5.4). Each request shows the balance it
+   draws from and the department head's remark. Data: hr/sample_data.py LEAVE_PROCESSING. #}
+
+{% block scripts %}<script src="{% static 'hr/js/leave_queue.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <a class="ds-btn ds-btn-secondary" href="{% url 'hr:approvals' %}"><i class="ti ti-clipboard-check" aria-hidden="true"></i>Step 1 · {{ step_one }} with department heads</a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+<section class="ds-card ds-panel p-none" aria-labelledby="queue-title">
+  <div class="ds-panel-head">
+    <div class="fms-min0">
+      <h2 class="ds-panel-title" id="queue-title">Waiting for HR</h2>
+      <p class="ds-panel-sub"><span data-leave-left>{{ rows|length }}</span> to decide · {{ overdue }} over {{ limit }} working days · oldest first</p>
+    </div>
+  </div>
+  <div class="ds-table-wrap">
+    <table class="ds-table">
+      <thead><tr><th scope="col">Employee</th><th scope="col">Leave</th><th scope="col">Balance</th><th scope="col">Approval</th><th scope="col">Department head's remark</th><th scope="col">Status</th><th scope="col" class="a-right"><span class="ds-sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr data-leave-row>
+          <td><div class="ds-cell-strong">{{ r.name }}</div><div class="ds-cell-sub">{{ r.department }}</div></td>
+          <td><div class="ds-cell-strong">{{ r.type }}</div><div class="ds-cell-sub">{{ r.dates }} · {{ r.days }} day{{ r.days|pluralize }}{% if r.attachment %} · <i class="ti ti-file-text" aria-hidden="true"></i> certificate{% endif %}</div></td>
+          <td>{% if r.short %}<span class="ds-status v-error"><span class="ds-dot d-error"></span>Only {{ r.left }} left</span>{% else %}{{ r.left }} of {{ r.of }} left<div class="ds-cell-sub">{{ r.after }} after this</div>{% endif %}</td>
+          <td><ol class="fms-approval">{% for step in r.steps %}<li class="is-{{ step.state }}"{% if step.label == "HR" %} data-hr-step{% endif %}><i class="ti ti-{{ step.icon }}" aria-hidden="true"></i>{{ step.label }}<span class="ds-sr-only">: {{ step.state_label }}</span></li>{% endfor %}</ol></td>
+          <td class="fms-remarks" data-leave-note>{% if r.remark %}{{ r.remark }}{% else %}—{% endif %}<div class="ds-cell-sub">{{ r.head }}</div></td>
+          <td data-leave-status>{% if r.overdue %}<span class="ds-status v-warning"><span class="ds-dot d-warning"></span>Waiting {{ r.waiting }}</span>{% else %}<span class="ds-status"><span class="ds-dot"></span>Waiting {{ r.waiting }}</span>{% endif %}</td>
+          <td class="a-right">
+            <div class="fms-row fms-end" data-leave-actions>
+              <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-leave-decline data-dialog-open="decline-dialog" aria-label="Decline leave for {{ r.name }}">Decline</button>
+              <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-leave-approve aria-label="Approve leave for {{ r.name }}"><i class="ti ti-check" aria-hidden="true"></i>Approve</button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal m-md" id="decline-dialog" aria-labelledby="decline-title" aria-describedby="decline-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-decline-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-x"></i></div>
+        <h2 class="ds-modal-title" id="decline-title">Decline leave</h2>
+        <p class="ds-modal-desc" id="decline-desc">The days go back to the employee's balance. They see your remark and can refile.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="decline-remark">Remark <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <textarea class="ds-control" id="decline-remark" aria-required="true" aria-describedby="decline-error" data-decline-remark></textarea>
+        <p class="ds-error fms-field-error" id="decline-error" data-decline-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Add a remark so the employee knows why.</span></p>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Decline</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
