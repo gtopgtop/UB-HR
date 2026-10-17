@@ -77,10 +77,10 @@
     <button class="ds-tab" type="button" role="tab" id="tab-leave" aria-controls="panel-leave" aria-selected="false" tabindex="-1" data-hash="leave"><i class="ti ti-clipboard-list" aria-hidden="true"></i>Leave requests <span class="ds-tab-count" data-leave-count>{{ leave_with_hr }}</span></button>
   </div>
 
-  {# ── Calendar and attendance: the Academic Calendar handoff's layout (§1, §7.4, §8, §12) on this
+  {% comment %} ── Calendar and attendance: the Academic Calendar handoff's layout (§1, §7.4, §8, §12) on this
      project's tokens. School events, which HR keeps, your own events, and school-wide daily
      attendance as its attendance layer (§10, departments in place of sections). Rendered by
-     calendar.js from the "calendar-data" JSON below. ── #}
+     calendar.js from the "calendar-data" JSON below. ── {% endcomment %}
   <div class="fms-tab-panel" role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar" tabindex="0">
     {{ calendar|json_script:"calendar-data" }}
     <div class="cal" data-calendar>
@@ -325,8 +325,8 @@
   </form>
 </dialog>
 
-{# ── Calendar modals (handoff §8.11–8.13). HR keeps the school calendar, so creating an event asks
-   where it goes (School calendar or Just me), and a school event picks its type. ── #}
+{% comment %} ── Calendar modals (handoff §8.11–8.13). HR keeps the school calendar, so creating an event asks
+   where it goes (School calendar or Just me), and a school event picks its type. ── {% endcomment %}
 <dialog class="ds-modal m-md" id="cal-event-dialog" aria-labelledby="cal-event-title" aria-describedby="cal-event-desc">
   <form method="dialog" novalidate class="fms-dialog-form" data-cal-event-form>
     <div class="ds-modal-body">
