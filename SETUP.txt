@@ -37,10 +37,10 @@ Any free port works.
 
 Pages:
 
-    /                   Employee home
-    /wellness/          Wellness
-    /admin-dashboard/   Admin dashboard
-    /dashboard/         Employee dashboard (1920x1080 sample data)
+    /                   Dashboard (layout sample)
+    /ui/                UI kit (every component)
+
+    Every other screen is in the sidebar. Most are placeholders for now.
 
 Stop the server with Ctrl+C.
 
@@ -61,7 +61,7 @@ Django 6 needs a recent Python (3.12 or newer). Check with: python3 --version
 4. OPTIONAL
 -----------
 
-Run the tests (3 should pass):
+Run the tests (8 should pass):
 
     python manage.py test
 
@@ -72,8 +72,8 @@ Unapplied-migrations warning at startup:
     python manage.py migrate
 
 Fonts:
-    The page fonts load from Google Fonts and need internet. Offline, the
-    pages fall back to system fonts.
+    DM Sans loads from Google Fonts and needs internet. Offline, the pages
+    fall back to system fonts. The icon font is stored in the project.
 
 VS Code import warnings:
     Press Cmd/Ctrl+Shift+P, choose "Python: Select Interpreter", and pick the

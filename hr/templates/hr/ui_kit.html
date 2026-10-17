@@ -1,0 +1,175 @@
+{% extends "hr/base.html" %}
+{# One working example of each Portal Layout component. Copy markup from here when building a screen. #}
+
+{% block content %}
+<section class="ds-card ds-panel">
+  <div class="ds-panel-head"><div><h2 class="ds-panel-title">Button</h2><p class="ds-panel-sub">One primary per surface; destructive only for irreversible actions</p></div></div>
+  <div class="ds-panel-body ds-stack">
+    <div class="fms-row">
+      <button type="button" class="ds-btn ds-btn-primary"><i class="ti ti-plus" aria-hidden="true"></i>New request</button>
+      <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-download" aria-hidden="true"></i>Export</button>
+      <button type="button" class="ds-btn ds-btn-ghost">Cancel</button>
+      <button type="button" class="ds-btn ds-btn-destructive"><i class="ti ti-trash" aria-hidden="true"></i>Delete</button>
+    </div>
+    <div class="fms-row">
+      <button type="button" class="ds-btn ds-btn-primary ds-btn-sm">Small</button>
+      <button type="button" class="ds-btn ds-btn-primary">Medium</button>
+      <button type="button" class="ds-btn ds-btn-primary ds-btn-lg">Large</button>
+      <button type="button" class="ds-btn ds-btn-secondary ds-btn-icon" aria-label="Edit"><i class="ti ti-edit" aria-hidden="true"></i></button>
+      <button type="button" class="ds-btn ds-btn-primary" disabled>Disabled</button>
+      <button type="button" class="ds-btn ds-btn-primary" disabled aria-busy="true"><i class="ti ti-loader-2 ds-spin" aria-hidden="true"></i>Saving</button>
+    </div>
+  </div>
+</section>
+
+<section class="ds-card ds-panel">
+  <div class="ds-panel-head"><div><h2 class="ds-panel-title">Badge and status</h2><p class="ds-panel-sub">Always a label beside the colour</p></div></div>
+  <div class="ds-panel-body ds-stack">
+    <div class="fms-row">
+      <span class="ds-badge v-success"><span class="ds-dot d-success"></span>Approved</span>
+      <span class="ds-badge v-warning"><span class="ds-dot d-warning"></span>Pending</span>
+      <span class="ds-badge v-error"><span class="ds-dot d-error"></span>Declined</span>
+      <span class="ds-badge v-info"><span class="ds-dot d-info"></span>In review</span>
+      <span class="ds-badge"><span class="ds-dot"></span>Withdrawn</span>
+      <span class="ds-badge v-accent"><span class="ds-dot d-accent"></span>Transfer</span>
+      <span class="ds-badge v-brand">Tier 1</span>
+    </div>
+    <div class="fms-row">
+      <span class="ds-status v-success"><span class="ds-dot d-success"></span>Present</span>
+      <span class="ds-status v-warning"><span class="ds-dot d-warning"></span>Late</span>
+      <span class="ds-status v-error"><span class="ds-dot d-error"></span>Absent</span>
+      <span class="ds-status"><span class="ds-dot"></span>On leave</span>
+    </div>
+  </div>
+</section>
+
+<div class="fms-grid is-stats">
+  <div class="ds-card ds-stat"><div class="ds-stat-icon" aria-hidden="true"><i class="ti ti-users"></i></div><div class="fms-grow"><div class="ds-stat-value">0</div><div class="ds-stat-label">Brand</div></div></div>
+  <div class="ds-card ds-stat"><div class="ds-stat-icon t-success" aria-hidden="true"><i class="ti ti-circle-check"></i></div><div class="fms-grow"><div class="ds-stat-value">0</div><div class="ds-stat-label">Success</div></div></div>
+  <div class="ds-card ds-stat"><div class="ds-stat-icon t-warning" aria-hidden="true"><i class="ti ti-alert-triangle"></i></div><div class="fms-grow"><div class="ds-stat-value">0</div><div class="ds-stat-label">Warning</div></div></div>
+  <div class="ds-card ds-stat"><div class="ds-stat-icon t-error" aria-hidden="true"><i class="ti ti-alert-circle"></i></div><div class="fms-grow"><div class="ds-stat-value">0</div><div class="ds-stat-label">Error</div></div></div>
+  <div class="ds-card ds-stat"><div class="ds-stat-icon t-info" aria-hidden="true"><i class="ti ti-info-circle"></i></div><div class="fms-grow"><div class="ds-stat-value">0</div><div class="ds-stat-label">Info</div></div></div>
+  <div class="ds-card ds-stat"><div class="ds-stat-icon t-muted" aria-hidden="true"><i class="ti ti-inbox"></i></div><div class="fms-grow"><div class="ds-stat-value">0</div><div class="ds-stat-label">Muted</div></div></div>
+</div>
+
+<section class="ds-card ds-panel">
+  <div class="ds-panel-head"><div><h2 class="ds-panel-title">Form field</h2><p class="ds-panel-sub">Errors sit under their field</p></div></div>
+  <div class="ds-panel-body">
+    <form class="fms-form" novalidate onsubmit="return false">
+      <div class="ds-field">
+        <label class="ds-label" for="kit-name">Full name <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <input class="ds-control" id="kit-name" aria-required="true" aria-describedby="kit-name-hint" placeholder="As it appears on your ID">
+        <p class="ds-hint" id="kit-name-hint">Use your legal name.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="kit-email">Email <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <input class="ds-control is-invalid" id="kit-email" type="email" value="name@" aria-required="true" aria-invalid="true" aria-describedby="kit-email-error">
+        <p class="ds-error" id="kit-email-error"><i class="ti ti-alert-circle" aria-hidden="true"></i>Enter a valid email address.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="kit-type">Leave type</label>
+        <select class="ds-control" id="kit-type"><option>Vacation</option><option>Sick</option><option>Emergency</option></select>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="kit-id">Employee number</label>
+        <input class="ds-control" id="kit-id" value="0000-0000" readonly>
+      </div>
+      <div class="ds-field fms-span-all">
+        <label class="ds-label" for="kit-note">Remark</label>
+        <textarea class="ds-control" id="kit-note" placeholder="Optional"></textarea>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="ds-card ds-panel">
+  <div class="ds-panel-head"><div><h2 class="ds-panel-title">Search, segmented control and tabs</h2><p class="ds-panel-sub">Arrow keys, Home and End move between tabs</p></div></div>
+  <div class="ds-panel-body ds-stack">
+    <div class="ds-toolbar">
+      <div class="ds-search">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <label class="ds-sr-only" for="kit-search">Search employees</label>
+        <input id="kit-search" type="search" placeholder="Search employees">
+      </div>
+      <div class="ds-segmented" role="group" aria-label="View">
+        <button class="ds-seg" type="button" aria-pressed="true"><i class="ti ti-chart-bar" aria-hidden="true"></i>Charts</button>
+        <button class="ds-seg" type="button" aria-pressed="false"><i class="ti ti-list-check" aria-hidden="true"></i>Tables</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="ds-tabs" role="tablist" aria-label="Record sections">
+        <button class="ds-tab" type="button" role="tab" id="kit-tab-1" aria-controls="kit-panel-1" aria-selected="true"><i class="ti ti-id-badge-2" aria-hidden="true"></i>Profile</button>
+        <button class="ds-tab" type="button" role="tab" id="kit-tab-2" aria-controls="kit-panel-2" aria-selected="false" tabindex="-1"><i class="ti ti-receipt" aria-hidden="true"></i>Payslips <span class="ds-tab-count">3</span></button>
+        <button class="ds-tab" type="button" role="tab" id="kit-tab-3" aria-controls="kit-panel-3" aria-selected="false" tabindex="-1"><i class="ti ti-clipboard-list" aria-hidden="true"></i>201 file</button>
+      </div>
+      <div class="fms-tab-panel" role="tabpanel" id="kit-panel-1" aria-labelledby="kit-tab-1" tabindex="0"><p class="fms-muted">Profile panel.</p></div>
+      <div class="fms-tab-panel" role="tabpanel" id="kit-panel-2" aria-labelledby="kit-tab-2" tabindex="0" hidden><p class="fms-muted">Payslips panel.</p></div>
+      <div class="fms-tab-panel" role="tabpanel" id="kit-panel-3" aria-labelledby="kit-tab-3" tabindex="0" hidden><p class="fms-muted">201 file panel.</p></div>
+    </div>
+
+    <div class="ds-tabs is-pill" role="tablist" aria-label="Period">
+      <button class="ds-tab" type="button" role="tab" id="kit-pill-1" aria-controls="kit-pill-panel" aria-selected="true">30 days</button>
+      <button class="ds-tab" type="button" role="tab" id="kit-pill-2" aria-controls="kit-pill-panel" aria-selected="false" tabindex="-1">Semester</button>
+      <button class="ds-tab" type="button" role="tab" id="kit-pill-3" aria-controls="kit-pill-panel" aria-selected="false" tabindex="-1">School year</button>
+    </div>
+    <div class="ds-sr-only" role="tabpanel" id="kit-pill-panel" aria-labelledby="kit-pill-1">Pill tabs share one panel in this demo.</div>
+  </div>
+</section>
+
+<section class="ds-card ds-panel">
+  <div class="ds-panel-head"><div><h2 class="ds-panel-title">Alert</h2><p class="ds-panel-sub">For the whole form or page</p></div></div>
+  <div class="ds-panel-body ds-stack">
+    <div class="ds-alert v-error" role="alert"><i class="ti ti-alert-circle" aria-hidden="true"></i><div class="ds-alert-body"><div class="ds-alert-title">The request was not saved</div><div>Check the highlighted fields and try again.</div></div></div>
+    <div class="ds-alert v-warning" role="alert"><i class="ti ti-alert-triangle" aria-hidden="true"></i><div class="ds-alert-body">Your leave balance is lower than the days requested.</div></div>
+    <div class="ds-alert v-success" role="status"><i class="ti ti-circle-check" aria-hidden="true"></i><div class="ds-alert-body">Check-in submitted.</div><button class="ds-alert-close" type="button" aria-label="Dismiss message" data-dismiss><i class="ti ti-x" aria-hidden="true"></i></button></div>
+    <div class="ds-alert v-info" role="status"><i class="ti ti-info-circle" aria-hidden="true"></i><div class="ds-alert-body">Individual check-ins stay private. HR sees grouped trends only.</div></div>
+  </div>
+</section>
+
+<div class="fms-grid is-halves">
+  <section class="ds-card ds-panel">
+    <div class="ds-panel-head"><div><h2 class="ds-panel-title">Empty state</h2><p class="ds-panel-sub">The request worked and returned nothing</p></div></div>
+    <div class="ds-empty">
+      <div class="ds-empty-icon" aria-hidden="true"><i class="ti ti-inbox"></i></div>
+      <div class="ds-empty-title">No leave requests yet</div>
+      <p class="ds-empty-sub">Requests you file will appear here with their status.</p>
+      <button type="button" class="ds-btn ds-btn-primary ds-btn-sm"><i class="ti ti-plus" aria-hidden="true"></i>File leave</button>
+    </div>
+  </section>
+  <section class="ds-card ds-panel">
+    <div class="ds-panel-head"><div><h2 class="ds-panel-title">Error state</h2><p class="ds-panel-sub">The request failed; never shown as empty</p></div></div>
+    <div class="ds-empty" role="alert">
+      <div class="ds-empty-icon t-error" aria-hidden="true"><i class="ti ti-cloud-off"></i></div>
+      <div class="ds-empty-title">Requests could not load</div>
+      <p class="ds-empty-sub">Something went wrong on our side.</p>
+      <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-refresh" aria-hidden="true"></i>Try again</button>
+    </div>
+  </section>
+</div>
+
+<section class="ds-card ds-panel">
+  <div class="ds-panel-head"><div><h2 class="ds-panel-title">Modal</h2><p class="ds-panel-sub">The safe choice comes first and takes focus</p></div></div>
+  <div class="ds-panel-body">
+    <button type="button" class="ds-btn ds-btn-secondary" data-dialog-open="kit-confirm"><i class="ti ti-trash" aria-hidden="true"></i>Delete a record</button>
+  </div>
+</section>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal" id="kit-confirm" aria-labelledby="kit-confirm-title" aria-describedby="kit-confirm-desc">
+  <div class="ds-modal-body">
+    <div class="ds-modal-head">
+      <div class="ds-modal-icon t-danger" aria-hidden="true"><i class="ti ti-trash"></i></div>
+      <h2 class="ds-modal-title" id="kit-confirm-title">Delete this record?</h2>
+      <p class="ds-modal-desc" id="kit-confirm-desc">This cannot be undone.</p>
+    </div>
+  </div>
+  <div class="ds-modal-foot">
+    <div class="ds-modal-foot-row">
+      <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+      <button type="button" class="ds-btn ds-btn-destructive" data-dialog-close>Yes, delete</button>
+    </div>
+  </div>
+</dialog>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "hr/base.html" %}
+{# Layout sample: every figure below is a placeholder until the sample-data module exists (plan §9.1). #}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-download" aria-hidden="true"></i>Export</button>
+  <button type="button" class="ds-btn ds-btn-primary"><i class="ti ti-plus" aria-hidden="true"></i>New request</button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="fms-grid is-stats">
+  <div class="ds-card ds-stat"><div class="ds-stat-icon" aria-hidden="true"><i class="ti ti-calendar-time"></i></div><div class="fms-grow"><div class="ds-stat-value">120 h</div><div class="ds-stat-label">Hours this month</div></div></div>
+  <div class="ds-card ds-stat"><div class="ds-stat-icon t-success" aria-hidden="true"><i class="ti ti-circle-check"></i></div><div class="fms-grow"><div class="ds-stat-value">12 days</div><div class="ds-stat-label">Leave balance</div></div></div>
+  <div class="ds-card ds-stat"><div class="ds-stat-icon t-warning" aria-hidden="true"><i class="ti ti-clipboard-list"></i></div><div class="fms-grow"><div class="ds-stat-value">2</div><div class="ds-stat-label">Open requests</div></div></div>
+  <div class="ds-card ds-stat"><div class="ds-stat-icon t-info" aria-hidden="true"><i class="ti ti-award"></i></div><div class="fms-grow"><div class="ds-stat-value">Dec 1</div><div class="ds-stat-label">Next evaluation</div></div></div>
+</div>
+
+<div class="ds-toolbar">
+  <div class="ds-search">
+    <i class="ti ti-search" aria-hidden="true"></i>
+    <label class="ds-sr-only" for="request-search">Search requests</label>
+    <input id="request-search" type="search" placeholder="Search requests">
+  </div>
+  <div class="ds-segmented" role="group" aria-label="Request type">
+    <button class="ds-seg" type="button" aria-pressed="true">All</button>
+    <button class="ds-seg" type="button" aria-pressed="false">Leave</button>
+    <button class="ds-seg" type="button" aria-pressed="false">Records</button>
+  </div>
+</div>
+
+<div class="ds-card p-none">
+  <div class="ds-table-wrap">
+    <table class="ds-table">
+      <caption class="ds-sr-only">My requests</caption>
+      <thead><tr>
+        <th scope="col" aria-sort="ascending"><button class="ds-sort is-sorted" type="button">Request <i class="ti ti-sort-ascending" aria-hidden="true"></i></button></th>
+        <th scope="col">Status</th>
+        <th scope="col"><button class="ds-sort" type="button">Filed <i class="ti ti-arrows-sort" aria-hidden="true"></i></button></th>
+        <th scope="col" class="a-right">Days</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><div class="ds-cell-person"><div class="ds-avatar ds-avatar-1" aria-hidden="true">VL</div><div><div class="ds-cell-strong">Vacation leave</div><div class="ds-cell-sub">Reference 0001</div></div></div></td><td><span class="ds-status v-warning"><span class="ds-dot d-warning"></span>Pending</span></td><td>Oct 2</td><td class="a-right">2</td></tr>
+        <tr><td><div class="ds-cell-person"><div class="ds-avatar ds-avatar-2" aria-hidden="true">RC</div><div><div class="ds-cell-strong">Record correction</div><div class="ds-cell-sub">Reference 0002</div></div></div></td><td><span class="ds-status v-success"><span class="ds-dot d-success"></span>Approved</span></td><td>Sep 18</td><td class="a-right">—</td></tr>
+        <tr><td><div class="ds-cell-person"><div class="ds-avatar ds-avatar-3" aria-hidden="true">SL</div><div><div class="ds-cell-strong">Sick leave</div><div class="ds-cell-sub">Reference 0003</div></div></div></td><td><span class="ds-status v-error"><span class="ds-dot d-error"></span>Declined</span></td><td>Sep 4</td><td class="a-right">1</td></tr>
+        <tr><td><div class="ds-cell-person"><div class="ds-avatar ds-avatar-4" aria-hidden="true">BR</div><div><div class="ds-cell-strong">Breakdown request</div><div class="ds-cell-sub">Reference 0004</div></div></div></td><td><span class="ds-status"><span class="ds-dot"></span>Withdrawn</span></td><td>Aug 27</td><td class="a-right">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="fms-card-foot">
+    <div class="ds-pagination">
+      <span class="ds-pagination-summary">Page <strong>1</strong> of <strong>3</strong> &nbsp;·&nbsp; 12 total records</span>
+      <nav aria-label="Pagination">
+        <button class="ds-page-btn" type="button" aria-label="Previous page" disabled><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
+        <button class="ds-page-btn" type="button" aria-label="Page 1" aria-current="page">1</button>
+        <button class="ds-page-btn" type="button" aria-label="Page 2">2</button>
+        <button class="ds-page-btn" type="button" aria-label="Page 3">3</button>
+        <button class="ds-page-btn" type="button" aria-label="Next page"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
+      </nav>
+    </div>
+  </div>
+</div>
+
+<div class="fms-grid is-halves">
+  <section class="ds-card ds-panel">
+    <div class="ds-panel-head">
+      <div><h2 class="ds-panel-title">Announcements</h2><p class="ds-panel-sub">Memos and policy updates</p></div>
+      <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:messages' %}">View all</a>
+    </div>
+    <div class="ds-panel-body">
+      <ul class="fms-list">
+        <li><span>Announcement title one</span><span class="fms-caption">Memo · Oct 10</span></li>
+        <li><span>Announcement title two</span><span class="fms-caption">Policy · Oct 8</span></li>
+        <li><span>Announcement title three</span><span class="fms-caption">Event · Oct 6</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="ds-card ds-panel">
+    <div class="ds-panel-head">
+      <div><h2 class="ds-panel-title">Today's schedule</h2><p class="ds-panel-sub">Classes and duties</p></div>
+    </div>
+    <div class="ds-empty">
+      <div class="ds-empty-icon" aria-hidden="true"><i class="ti ti-inbox"></i></div>
+      <div class="ds-empty-title">Nothing scheduled today</div>
+      <p class="ds-empty-sub">Classes and duties assigned to you will appear here.</p>
+    </div>
+  </section>
+</div>
+{% endblock %}

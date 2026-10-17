@@ -1,0 +1,41 @@
+<aside class="ds-sidebar" id="sidebar">
+  <div class="ds-sidebar-brand">
+    <div class="ds-brand-tile" aria-hidden="true"><i class="ti ti-building"></i></div>
+    <div class="fms-min0 fms-rail-hide">
+      <div class="ds-brand-name">Faculty Management</div>
+      <div class="ds-brand-sub">HR portal</div>
+    </div>
+  </div>
+
+  <nav class="ds-nav" aria-label="Main navigation">
+    {% for group in nav %}
+    <div class="ds-nav-section">
+      {% if group.section.collapsible %}
+      <button class="ds-nav-label" type="button" aria-expanded="{{ group.open|yesno:'true,false' }}" aria-controls="nav-{{ forloop.counter }}">{{ group.section.label }}<i class="ti ti-chevron-down" aria-hidden="true"></i></button>
+      {% else %}
+      <div class="ds-nav-label">{{ group.section.label }}</div>
+      {% endif %}
+      <div class="ds-nav-group" id="nav-{{ forloop.counter }}"{% if not group.open %} hidden{% endif %}>
+        {% for item in group.section.pages %}
+        <a class="ds-nav-link" href="{{ item.url }}"{% if item == page %} aria-current="page"{% endif %}><i class="ti ti-{{ item.icon }}" aria-hidden="true"></i><span>{{ item.label }}</span></a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </nav>
+
+  <div class="ds-sidebar-foot is-thin fms-rail-toggle-row">
+    <button class="ds-nav-link fms-rail-toggle" type="button" aria-pressed="false" data-rail-toggle><i class="ti ti-chevron-left" aria-hidden="true"></i><span>Collapse</span></button>
+  </div>
+
+  <div class="ds-sidebar-foot">
+    <a class="ds-nav-link" href="{% url 'hr:account' %}"{% if page.name == 'account' %} aria-current="page"{% endif %}><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i><span>My settings</span></a>
+    <div class="ds-user-card">
+      <div class="ds-avatar" aria-hidden="true">SU</div>
+      <div class="fms-grow fms-rail-hide">
+        <div class="ds-user-name">Sample user</div>
+        <div class="ds-user-role">All roles (prototype)</div>
+      </div>
+    </div>
+  </div>
+</aside>

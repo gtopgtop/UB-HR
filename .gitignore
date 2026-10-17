@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 db.sqlite3
 .DS_Store
+
+# Research paper (kept local, not committed)
+Intelligent_Faculty_Management_System.md

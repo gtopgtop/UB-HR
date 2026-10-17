@@ -1,0 +1,33 @@
+{% extends "hr/base.html" %}
+{# Stand-in for every screen that is not built yet. Its content comes from hr/pages.py. #}
+
+{% block content %}
+<div class="ds-card">
+  <div class="ds-empty">
+    <div class="ds-empty-icon" aria-hidden="true"><i class="ti ti-tools"></i></div>
+    <div class="ds-empty-title">Not built yet</div>
+    <p class="ds-empty-sub">
+      {% if page.iteration %}This screen arrives in iteration {{ page.iteration }} ({{ page.iteration_name }}).{% else %}This screen is not in the build plan yet.{% endif %}
+      Until then it shows the shared layout only.
+    </p>
+    <a class="ds-btn ds-btn-secondary" href="{% url 'hr:dashboard' %}"><i class="ti ti-layout-dashboard" aria-hidden="true"></i>Back to dashboard</a>
+  </div>
+</div>
+
+{% if page.planned %}
+<section class="ds-card ds-panel">
+  <div class="ds-panel-head">
+    <div>
+      <h2 class="ds-panel-title">Planned for this screen</h2>
+      <p class="ds-panel-sub">From docs/plan.md §9.2{% if page.role %} · {{ page.role }}{% endif %}</p>
+    </div>
+    {% if page.tier %}<span class="ds-badge v-brand">{{ page.tier }}</span>{% endif %}
+  </div>
+  <div class="ds-panel-body">
+    <ul class="fms-planned">
+      {% for item in page.planned %}<li>{{ item }}</li>{% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

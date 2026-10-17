@@ -1,7 +1,9 @@
 # Intelligent Faculty Management System (UI prototype)
 
-Static Django proof of concept of the four wireframe screens. **No logic and no database reads yet**:
-every screen is a plain template with hard-coded placeholder content, because the database design is still being decided.
+Static Django prototype built on the **Portal Layout** handoff: a persistent sidebar, a sticky page header
+and a scrolling content column. **No logic and no database reads yet.** Every screen from `docs/plan.md` §9.2 exists as
+a route; the Dashboard shows the full layout with placeholder figures, and the rest are placeholder pages that list
+what each screen will hold.
 
 ## Run it
 
@@ -13,18 +15,22 @@ python3 -m venv .venv
 
 | URL | Screen |
 |---|---|
-| `/` | Employee home (bracketed `[placeholder]` version) |
-| `/wellness/` | Wellness |
-| `/admin-dashboard/` | Admin dashboard |
-| `/dashboard/` | Employee dashboard, 1920x1080 proof of concept with sample data |
+| `/` | Dashboard: layout sample (stat cards, toolbar, table, pagination, panels) |
+| `/ui/` | UI kit: every component, to copy markup from |
+| everything else in the sidebar | Placeholder page: "Not built yet", plus the plan's list for that screen |
 
 ## Where things are
 
-- `hr/templates/hr/` – one template per screen, plus `base.html` (header/footer), `base_sidebar.html` and `_mood.html`
-- `hr/static/hr/css/app.css` – all styling (design tokens at the top: maroon `--maroon`, gold `--gold`)
-- `hr/urls.py` – plain `TemplateView` routes (no views, no queries)
+- `hr/pages.py` – the one list of screens: route, sidebar section, title, icon, and what is planned. Add a screen here.
+- `hr/views.py` – a single `PageView` that renders a screen inside the shell (no queries)
+- `hr/templates/hr/` – `base.html` (shell and page header), `_sidebar.html`, `dashboard.html`, `placeholder.html`, `ui_kit.html`
+- `hr/static/hr/portal/` – the handoff's `tokens.css`, `bundle.css` and Tabler icon font. Keep these as delivered;
+  new icon glyphs go in the marked block at the end of `bundle.css`.
+- `hr/static/hr/css/app.css` – the project layer (`fms-` classes): rail, collapsible nav groups, page grids, dialog
+- `hr/static/hr/js/shell.js` – remembered rail, mobile drawer, nav groups, and the UI kit demos
 
-Buttons and forms are inert on purpose. Nav links that have no screen yet (My records, Attendance, Career, Messages) point to `#`.
+To build a screen, give its `Page` a `template=` name and create `hr/templates/hr/<name>.html` extending `hr/base.html`
+(blocks: `actions`, `content`, `dialogs`). Buttons and forms are inert on purpose.
 
 ## Parked: earlier database draft
 

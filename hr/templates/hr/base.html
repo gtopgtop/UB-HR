@@ -3,35 +3,55 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Faculty Management System{% endblock %}</title>
+  <title>{{ page.title }} · Faculty Management System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'hr/portal/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'hr/portal/bundle.css' %}">
   <link rel="stylesheet" href="{% static 'hr/css/app.css' %}">
+  <script src="{% static 'hr/js/shell.js' %}" defer></script>
 </head>
-<body class="{% block body_class %}{% endblock %}">
-  <header class="site-header">
-    <div class="bar">
-      <a class="brand" href="{% url 'hr:employee_home' %}">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span class="brand-name">Faculty<br>Management System</span>
-      </a>
-      <nav class="nav" aria-label="Main">
-        <a href="{% url 'hr:employee_home' %}"{% if nav == 'home' %} class="is-active"{% endif %}>Home</a>
-        <a href="#">My records</a>
-        <a href="#">Attendance</a>
-        <a href="#">Career</a>
-        <a href="#">Messages</a>
-        <a href="{% url 'hr:wellness' %}"{% if nav == 'wellness' %} class="is-active"{% endif %}>Wellness</a>
-        <a class="btn-gold" href="{% url 'hr:admin_dashboard' %}">Admin dashboard</a>
-      </nav>
+<body>
+<div class="ds-shell">
+  {% include "hr/_sidebar.html" %}
+  {# Apply the remembered rail before first paint, so the sidebar does not jump. #}
+  <script>try{if(localStorage.getItem("fms.sidebar.rail")==="1"&&matchMedia("(min-width: 1024px)").matches)document.getElementById("sidebar").classList.add("is-rail")}catch(e){}</script>
+  <button class="ds-drawer-backdrop" type="button" aria-label="Close navigation menu" data-drawer-close hidden></button>
+
+  <div class="ds-shell-col">
+    <div class="ds-mobile-bar">
+      <button class="ds-icon-btn" type="button" aria-label="Open navigation menu" aria-controls="sidebar" aria-expanded="false" data-drawer-open><i class="ti ti-menu-2" aria-hidden="true"></i></button>
+      <span class="ds-mobile-bar-title">Faculty Management</span>
     </div>
-  </header>
 
-  {% block page %}{% endblock %}
+    <main class="ds-page">
+      <header class="ds-page-header">
+        {% if crumbs %}
+        <nav class="ds-crumbs" aria-label="Breadcrumb">
+          <ol>
+            {% for crumb in crumbs %}<li><a href="{{ crumb.url }}">{{ crumb.title }}</a></li>{% endfor %}
+            <li><span aria-current="page">{{ page.title }}</span></li>
+          </ol>
+        </nav>
+        {% endif %}
+        <div class="ds-page-header-row">
+          <div class="ds-page-header-lead">
+            <div class="ds-page-header-icon" aria-hidden="true"><i class="ti ti-{{ page.icon }}"></i></div>
+            <div class="fms-min0">
+              <h1 class="ds-page-title">{{ page.title }}</h1>
+              {% if page.subtitle %}<p class="ds-page-subtitle">{{ page.subtitle }}</p>{% endif %}
+            </div>
+          </div>
+          {% block actions %}{% endblock %}
+        </div>
+      </header>
 
-  <footer class="site-footer">
-    <div>{% block footer_text %}[School name] · Faculty Management System{% endblock %}</div>
-  </footer>
+      <div class="ds-content ds-stack">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+</div>
+{% block dialogs %}{% endblock %}
 </body>
 </html>
