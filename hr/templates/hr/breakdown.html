@@ -1,10 +1,10 @@
 {% extends "hr/base.html" %}
-{% load static %}
+{% load fms %}
 {# Evaluation breakdown, HR officer view (plan §3 Module 3, §7.3 rule 9; usability task 13). HR releases
    breakdowns and resolves rechecks. The AI interpretation is the employee's alone (§5.5), so it is not here.
    Data: hr/sample_data.py BREAKDOWN. #}
 
-{% block scripts %}<script src="{% static 'hr/js/breakdown.js' %}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% asset 'hr/js/breakdown.js' %}" defer></script>{% endblock %}
 
 {% block actions %}
 <div class="ds-actions">
@@ -29,55 +29,7 @@
       </div>
     </div>
 
-    <section class="ds-card ds-panel" aria-labelledby="computation-title">
-      <div class="ds-panel-head">
-        <div class="fms-min0">
-          <h2 class="ds-panel-title" id="computation-title">Computation</h2>
-          <p class="ds-panel-sub">What {{ employee.name }} will see once you release it</p>
-        </div>
-        <div class="fms-figure-value">{{ computation.overall }}<span> / 5</span></div>
-      </div>
-      <div class="ds-panel-body ds-stack">
-        {% if computation.merged %}
-        <div class="ds-alert v-info" role="status"><i class="ti ti-lock" aria-hidden="true"></i><div class="ds-alert-body">The peer group had fewer than {{ small_group }} respondents, so students and peers are shown as one combined figure. That way no one can work out the peers' score.</div></div>
-        {% endif %}
-        <div class="ds-table-wrap">
-          <table class="ds-table fms-num">
-            <thead><tr><th scope="col">Evaluator group</th><th scope="col" class="a-right">Respondents</th><th scope="col" class="a-right">Average</th><th scope="col" class="a-right">Weight</th><th scope="col" class="a-right">Points</th></tr></thead>
-            <tbody>
-              {% for g in computation.groups %}
-              <tr><th scope="row" class="ds-cell-strong">{{ g.label }}</th><td class="a-right">{{ g.respondents }}</td><td class="a-right">{{ g.average_text }}</td><td class="a-right">{{ g.weight }}%</td><td class="a-right ds-cell-strong">{{ g.points }}</td></tr>
-              {% endfor %}
-            </tbody>
-            <tfoot><tr><th scope="row">Overall rating</th><td></td><td></td><td class="a-right">100%</td><td class="a-right">{{ computation.overall }}</td></tr></tfoot>
-          </table>
-        </div>
-        <p class="fms-formula"><span class="ds-eyebrow">Formula</span> <code>{{ computation.formula }}</code></p>
-      </div>
-    </section>
-
-    <section class="ds-card ds-panel" aria-labelledby="criteria-title">
-      <div class="ds-panel-head">
-        <div class="fms-min0">
-          <h2 class="ds-panel-title" id="criteria-title">Criterion scores</h2>
-          <p class="ds-panel-sub">Averaged across every evaluator</p>
-        </div>
-      </div>
-      <div class="ds-panel-body ds-stack">
-        <div class="fms-meters">
-          {% for c in criteria %}
-          <div class="fms-meter">
-            <div class="fms-meter-head"><span>{{ c.label }}</span><span class="fms-meter-value"><strong>{{ c.score }}</strong> / 5</span></div>
-            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ c.pct }}%"></i></div>
-          </div>
-          {% endfor %}
-        </div>
-        <div>
-          <h3 class="ds-eyebrow">Supervisor's feedback</h3>
-          <p class="fms-muted">{{ feedback }}</p>
-        </div>
-      </div>
-    </section>
+    {% with computation_sub="What "|add:employee.name|add:" will see once you release it" %}{% include "hr/_breakdown_computation.html" %}{% endwith %}
   </div>
 
   <div class="fms-col is-side">

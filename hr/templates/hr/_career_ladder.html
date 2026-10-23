@@ -1,0 +1,30 @@
+{# The Career Progress Tracker's ladder (proposal Module 3): ranks, time in rank and requirements met. Used by #}
+{# the HR tracker and the employee's own career page, with `p` from sample_data._tracker(). #}
+  <section class="ds-card ds-panel" aria-labelledby="ladder-{{ p.slug }}">
+    <div class="ds-panel-head">
+      <div class="fms-min0"><h2 class="ds-panel-title" id="ladder-{{ p.slug }}">Career ladder</h2><p class="ds-panel-sub">{{ p.track }} track · {{ p.rank }} since {{ p.since }}</p></div>
+    </div>
+    <div class="ds-panel-body ds-stack">
+      <ol class="fms-steps" aria-label="{{ p.track }} ranks">
+        {% for step in p.ladder %}
+        <li class="fms-step is-{{ step.state }}"{% if step.state == 'current' %} aria-current="step"{% endif %}>
+          <span class="fms-step-dot" aria-hidden="true">{% if step.state == 'done' %}<i class="ti ti-check"></i>{% endif %}</span>
+          <span class="fms-step-title">{{ step.title }}</span>
+          <span class="fms-caption">{{ step.caption }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+      <div class="fms-grid is-halves">
+        <div class="fms-meter">
+          <div class="fms-meter-head"><span>Time in rank</span><span class="fms-meter-value"><strong>{{ p.years.value }}</strong> of {{ p.years.total }} expected years</span></div>
+          <div class="fms-meter-track{% if p.years.over %} is-warning{% endif %}" aria-hidden="true"><i style="width: {{ p.years.pct }}%"></i></div>
+          <div class="fms-caption">{% if p.years.over %}Past the expected time in rank{% else %}Within the expected time in rank{% endif %}</div>
+        </div>
+        <div class="fms-meter">
+          <div class="fms-meter-head"><span>{% if p.next %}Requirements for {{ p.next }}{% else %}Requirements{% endif %}</span><span class="fms-meter-value"><strong data-tracker-met>{{ p.met.value }}</strong> of {{ p.met.total }} met</span></div>
+          <div class="fms-meter-track{% if p.met.pct < 60 %} is-warning{% endif %}" aria-hidden="true"><i style="width: {{ p.met.pct }}%" data-tracker-met-bar></i></div>
+          <div class="fms-caption">{{ p.grade }}{% if p.step_due %} · {{ p.step_due }}{% endif %}</div>
+        </div>
+      </div>
+    </div>
+  </section>

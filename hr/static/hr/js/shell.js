@@ -49,6 +49,9 @@
   applyRail(saved());
   setDrawer(false);
 
+  // "View as": switching role opens that role's landing page.
+  document.querySelector("[data-view-as] select")?.addEventListener("change", (e) => e.target.form.submit());
+
   // Collapsible nav groups.
   document.querySelectorAll("button.ds-nav-label[aria-controls]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -137,6 +140,76 @@
       });
     });
   }
+
+  // Table export: a button with data-csv-table="<table selector>" downloads that table as CSV, as it
+  // stands (rows hidden by a filter are left out). Columns with no visible heading, such as row actions,
+  // are skipped. data-csv-name sets the file name.
+  const cellText = (cell) => cell.textContent.replace(/\s+/g, " ").trim();
+  const quoteCSV = (v) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  document.querySelectorAll("[data-csv-table]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const table = document.querySelector(btn.dataset.csvTable);
+      const heads = [...table.tHead.rows[0].cells];
+      const hiddenOnly = (th) => th.querySelector(".ds-sr-only") && cellText(th) === cellText(th.querySelector(".ds-sr-only"));
+      const keep = heads.map((th) => cellText(th) !== "" && !hiddenOnly(th));
+      const pick = (row) => [...row.cells].filter((_, i) => keep[i]).map(cellText);
+      const body = [...table.tBodies].flatMap((tb) => [...tb.rows]).filter((tr) => !tr.hidden);
+      const foot = table.tFoot ? [...table.tFoot.rows] : [];
+      const rows = [pick(table.tHead.rows[0]), ...body.map(pick), ...foot.map(pick)];
+      const csv = rows.map((r) => r.map(quoteCSV).join(",")).join("\r\n");
+      const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" })); // BOM so Excel reads UTF-8
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = btn.dataset.csvName || "export.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      if (flash) {
+        flash.querySelector("[data-flash-text]").textContent = `Downloaded ${a.download}: ${body.length} row${body.length === 1 ? "" : "s"}.`;
+        flash.hidden = false;
+      }
+    });
+  });
+
+  // Stat tiles export: data-csv-stats="<grid selector>" downloads each tile's label, value and hint.
+  document.querySelectorAll("[data-csv-stats]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tiles = [...document.querySelectorAll(`${btn.dataset.csvStats} .ds-stat`)];
+      const pick = (tile, cls) => cellText(tile.querySelector(cls) || document.createElement("i"));
+      const rows = [["Figure", "Value", "Detail"],
+        ...tiles.map((t) => [pick(t, ".ds-stat-label"), pick(t, ".ds-stat-value"), pick(t, ".ds-stat-hint")])];
+      const csv = rows.map((r) => r.map(quoteCSV).join(",")).join("\r\n");
+      const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" })); // BOM so Excel reads UTF-8
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = btn.dataset.csvName || "figures.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      if (flash) {
+        flash.querySelector("[data-flash-text]").textContent = `Downloaded ${a.download}: ${tiles.length} figures as of now.`;
+        flash.hidden = false;
+      }
+    });
+  });
+
+  // Print a part of the page: fmsPrint([elements], "Heading") copies them into the print portal, which is
+  // the only thing the print layout shows (app.css), so "Save as PDF" in the print dialog gives just that.
+  window.fmsPrint = (elements, heading) => {
+    let portal = document.querySelector(".fms-print-portal");
+    if (!portal) {
+      portal = document.createElement("div");
+      portal.className = "fms-print-portal";
+      document.body.append(portal);
+    }
+    const head = document.createElement("h1");
+    head.className = "ds-panel-title";
+    head.textContent = heading;
+    portal.replaceChildren(head, ...elements.map((el) => {
+      const copy = el.cloneNode(true);
+      copy.hidden = false;
+      return copy;
+    }));
+    window.print();
+  };
 
   // Dialogs: native <dialog>. A click on the scrim closes it; focus returns to the opener.
   document.querySelectorAll("[data-dialog-open]").forEach((btn) => {

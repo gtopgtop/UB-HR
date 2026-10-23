@@ -1,0 +1,111 @@
+{% extends "hr/base.html" %}
+{# My settings: the signed-in HR officer's own profile, roles, notifications, out-of-office backup and display
+   preferences. Not in the plan's screen list; saves are stand-ins (data-say). Data: hr/sample_data.py ACCOUNT. #}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+<div class="fms-dash">
+  <div class="fms-col">
+    <section class="ds-card ds-panel" aria-labelledby="notify-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="notify-title">Notifications</h2><p class="ds-panel-sub">What reaches you, and where</p></div>
+      </div>
+      <form class="ds-panel-body ds-stack" onsubmit="return false" novalidate>
+        <div class="fms-checks" role="group" aria-label="Notification channels">
+          <span aria-hidden="true"></span><span class="fms-checks-head" aria-hidden="true">In the app</span><span class="fms-checks-head" aria-hidden="true">Email</span>
+          {% for n in notifications %}
+          <span id="{{ n.id }}">{{ n.label }}</span>
+          <label class="fms-check"><input type="checkbox"{% if n.in_app %} checked{% endif %} aria-labelledby="{{ n.id }}" aria-describedby="{{ n.id }}-app"><span class="ds-sr-only" id="{{ n.id }}-app">In the app</span></label>
+          <label class="fms-check"><input type="checkbox"{% if n.email %} checked{% endif %} aria-labelledby="{{ n.id }}" aria-describedby="{{ n.id }}-mail"><span class="ds-sr-only" id="{{ n.id }}-mail">Email</span></label>
+          {% endfor %}
+        </div>
+        <div class="fms-form">
+          <div class="ds-field">
+            <label class="ds-label" for="digest">Summary email</label>
+            <select class="ds-control" id="digest">{% for d in digests %}<option{% if d == digest %} selected{% endif %}>{{ d }}</option>{% endfor %}</select>
+            <p class="ds-hint">Queues and alerts in one message</p>
+          </div>
+        </div>
+        <div class="fms-row fms-end"><button type="submit" class="ds-btn ds-btn-primary" data-say="Notification settings saved." data-say-repeat><i class="ti ti-device-floppy" aria-hidden="true"></i>Save</button></div>
+      </form>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="away-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="away-title">When you're away</h2><p class="ds-panel-sub">Step 2 leave and computation requests go to a backup HR officer</p></div>
+      </div>
+      <form class="ds-panel-body ds-stack" onsubmit="return false" novalidate>
+        <div class="fms-form">
+          <div class="ds-field">
+            <label class="ds-label" for="away-from">From</label>
+            <input class="ds-control" id="away-from" type="date">
+          </div>
+          <div class="ds-field">
+            <label class="ds-label" for="away-to">Until</label>
+            <input class="ds-control" id="away-to" type="date">
+          </div>
+          <div class="ds-field">
+            <label class="ds-label" for="backup">Backup</label>
+            <select class="ds-control" id="backup">{% for b in backups %}<option>{{ b }}</option>{% endfor %}</select>
+          </div>
+        </div>
+        <p class="fms-muted">Your own leave still goes through the usual approval chain. No one approves their own requests.</p>
+        <div class="fms-row fms-end"><button type="submit" class="ds-btn ds-btn-primary" data-say="Away dates saved. Your backup is notified the day before." data-say-repeat><i class="ti ti-plane-departure" aria-hidden="true"></i>Set away dates</button></div>
+      </form>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="display-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="display-title">Display</h2><p class="ds-panel-sub">Saved for your account</p></div>
+      </div>
+      <form class="ds-panel-body ds-stack" onsubmit="return false" novalidate>
+        <div class="fms-form">
+          <div class="ds-field">
+            <label class="ds-label" for="landing">Open on</label>
+            <select class="ds-control" id="landing">{% for l in landings %}<option>{{ l }}</option>{% endfor %}</select>
+            <p class="ds-hint">The page you see after signing in</p>
+          </div>
+        </div>
+        <label class="fms-check"><input type="checkbox"> Start with the sidebar collapsed on wide screens</label>
+        <div class="fms-row fms-end"><button type="submit" class="ds-btn ds-btn-primary" data-say="Display settings saved." data-say-repeat><i class="ti ti-device-floppy" aria-hidden="true"></i>Save</button></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="fms-col is-side">
+    <section class="ds-card ds-panel" aria-labelledby="profile-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="profile-title">Profile</h2><p class="ds-panel-sub">From your HR record</p></div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <dl class="fms-dl">{% for label, value in profile %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+        <form class="ds-stack" onsubmit="return false" novalidate>
+          <div class="ds-field">
+            <label class="ds-label" for="phone">Mobile number</label>
+            <input class="ds-control" id="phone" type="tel" value="{{ phone }}" autocomplete="tel">
+            <p class="ds-hint">For urgent notices only</p>
+          </div>
+          <div class="fms-row fms-between">
+            <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-say="Correction request started. Another HR officer reviews it, not you.">Request a correction</button>
+            <button type="submit" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Mobile number saved." data-say-repeat>Save number</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="myroles-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="myroles-title">Your roles</h2><p class="ds-panel-sub">Only HR Admin can change these</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for r in roles %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ r.role }}</span><span class="fms-caption">{{ r.scope }} · since {{ r.granted }} · {{ r.by }}</span></span><i class="ti ti-shield-check" aria-hidden="true"></i></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "hr/base.html" %}
+{% load fms %}
+{# My career, employee view (proposal Module 3: the Career Progress Tracker; plan §3 Module 3; usability task 4). #}
+{# Ladder, what the next rank needs, goals, evaluations to acknowledge, salary grade and recognition. #}
+{# Data: hr/sample_data.py ME_CAREER (the same tracker HR sees for Robin). #}
+
+{% block scripts %}<script src="{% asset 'hr/js/me_career.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <a class="ds-btn ds-btn-secondary" href="{% url 'hr:me_breakdown' %}"><i class="ti ti-calculator" aria-hidden="true"></i>Evaluation breakdown</a>
+  <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="goal-dialog"><i class="ti ti-plus" aria-hidden="true"></i>Add goal</button>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+{% include "hr/_career_ladder.html" %}
+
+<div class="fms-dash">
+  <div class="fms-col">
+    <section class="ds-card ds-panel p-none" aria-labelledby="reqs-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="reqs-title">What {{ p.next }} needs</h2><p class="ds-panel-sub">An item counts once HR checks your proof</p></div>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Requirement</th><th scope="col">Progress</th><th scope="col">Status</th></tr></thead>
+          <tbody>
+            {% for r in p.requirements %}
+            <tr>
+              <th scope="row" class="ds-cell-strong">{{ r.label }}</th>
+              <td>{{ r.detail }}</td>
+              <td><span class="ds-status{% if r.tone %} v-{{ r.tone }}{% endif %}"><span class="ds-dot{% if r.tone %} d-{{ r.tone }}{% endif %}"></span>{% if r.state == "verify" %}Still needed · HR is checking your proof{% else %}{{ r.state_label }}{% endif %}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="goals-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="goals-title">Your goals</h2><p class="ds-panel-sub">1st semester · your principal can comment · due Oct 30</p></div>
+        <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-dialog-open="goal-dialog"><i class="ti ti-plus" aria-hidden="true"></i>Add</button>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters" data-goal-list>
+          {% for g in p.goals %}
+          <div class="fms-meter" data-goal>
+            <div class="fms-meter-head"><label for="goal-{{ forloop.counter }}">{{ g.goal }}</label><span class="fms-meter-value"><strong data-goal-value>{{ g.value }}%</strong></span></div>
+            <input class="fms-range" id="goal-{{ forloop.counter }}" type="range" min="0" max="100" step="5" value="{{ g.value }}" data-goal-range>
+            <div class="fms-caption" data-goal-updated>Updated {{ g.updated }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="fms-col is-side">
+    <section class="ds-card ds-panel" aria-labelledby="evals-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="evals-title">Your evaluations</h2><p class="ds-panel-sub">Students 40% · peers 20% · supervisor 40%</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for e in evaluations reversed %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ e.cycle }} · {{ e.rating }}</span><span class="fms-caption">Acknowledged {{ e.acknowledged }}</span></span>{% if e.latest %}<a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:me_breakdown' %}">Breakdown</a>{% endif %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="salary-title">
+      <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="salary-title">Salary grade</h2><p class="ds-panel-sub">{{ next_step }}</p></div></div>
+      <div class="ds-panel-body">
+        <ol class="fms-timeline">
+          {% for when, grade, why in salary reversed %}
+          <li{% if forloop.first %} class="is-current"{% endif %}><div class="fms-timeline-head"><span class="fms-schedule-title">{{ grade }}</span></div><div class="fms-caption">{{ when }} · {{ why }}</div></li>
+          {% endfor %}
+        </ol>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="recog-title">
+      <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="recog-title">Feedback and recognition</h2></div></div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for f in p.feedback %}<li><span class="fms-min0"><span class="fms-muted">“{{ f.text }}”</span><span class="fms-caption">{{ f.from }} · {{ f.when }}</span></span></li>{% endfor %}
+          {% for r in p.recognition %}<li><span class="fms-min0"><span class="fms-schedule-title"><i class="ti ti-star" aria-hidden="true"></i> {{ r.for }}</span><span class="fms-caption">Commendation from your {{ r.by|lower }} · {{ r.when }}</span></span></li>{% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal m-md" id="goal-dialog" aria-labelledby="goal-title" aria-describedby="goal-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-goal-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-flag"></i></div>
+        <h2 class="ds-modal-title" id="goal-title">Add a goal</h2>
+        <p class="ds-modal-desc" id="goal-desc">Something you can finish this semester. Your principal sees it and can comment.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="goal-text">Goal <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <input class="ds-control" id="goal-text" placeholder="e.g. Return checked work within the week" aria-required="true" aria-describedby="goal-error" data-goal-text>
+        <p class="ds-error fms-field-error" id="goal-error" data-goal-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Write the goal first.</span></p>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Add goal</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

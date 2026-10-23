@@ -1,0 +1,117 @@
+{% extends "hr/base.html" %}
+{% load fms %}
+{# My messages, employee view (proposal Module 4; plan §3 Module 4, §7.4): conversations with HR, announcements to #}
+{# acknowledge and notifications. Messages are private to their participants. Data: hr/sample_data.py ME_MESSAGES. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/me_messages.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="new-dialog"><i class="ti ti-pencil-plus" aria-hidden="true"></i>Message HR</button>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+<div>
+  <div class="ds-tabs" role="tablist" aria-label="Message sections">
+    <button class="ds-tab" type="button" role="tab" id="tab-inbox" aria-controls="panel-inbox" aria-selected="true" data-hash="inbox"><i class="ti ti-inbox" aria-hidden="true"></i>Conversations <span class="ds-tab-count">{{ unread }}</span></button>
+    <button class="ds-tab" type="button" role="tab" id="tab-announcements" aria-controls="panel-announcements" aria-selected="false" tabindex="-1" data-hash="announcements"><i class="ti ti-speakerphone" aria-hidden="true"></i>Announcements <span class="ds-tab-count" data-ack-count>{{ to_ack }}</span></button>
+    <button class="ds-tab" type="button" role="tab" id="tab-notifications" aria-controls="panel-notifications" aria-selected="false" tabindex="-1" data-hash="notifications"><i class="ti ti-bell" aria-hidden="true"></i>Notifications</button>
+  </div>
+
+  <div class="fms-tab-panel" role="tabpanel" id="panel-inbox" aria-labelledby="tab-inbox" tabindex="0">
+    <div class="fms-inbox">
+      <section class="ds-card ds-panel p-none" aria-labelledby="threads-title">
+        <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="threads-title">With HR</h2><p class="ds-panel-sub">Only you and HR can read these</p></div></div>
+        <ul class="fms-threads" data-thread-list>
+          {% for t in threads %}
+          <li><button type="button" class="fms-thread" data-thread="{{ t.id }}"{% if t == thread %} aria-current="true"{% endif %}>
+            <span class="ds-avatar" aria-hidden="true"><i class="ti ti-building"></i></span>
+            <span class="fms-min0 fms-grow">
+              <span class="fms-thread-head"><span class="fms-schedule-title">{{ t.subject }}</span><span class="fms-caption">{{ t.when }}</span></span>
+              <span class="fms-caption fms-truncate" data-thread-preview>{{ t.preview }}</span>
+            </span>
+            {% if t.unread %}<span class="ds-badge v-brand s-sm">{{ t.unread }}<span class="ds-sr-only"> unread</span></span>{% endif %}
+          </button></li>
+          {% endfor %}
+        </ul>
+      </section>
+      <div data-thread-panes>
+        {% for t in threads %}
+        <section class="ds-card ds-panel" aria-labelledby="thread-{{ t.id }}-title" data-thread-pane="{{ t.id }}"{% if t != thread %} hidden{% endif %}>
+          <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="thread-{{ t.id }}-title">{{ t.subject }}</h2><p class="ds-panel-sub">{{ t.name }}</p></div></div>
+          <div class="ds-panel-body ds-stack">
+            <ol class="fms-bubbles" aria-label="Messages" aria-live="polite" data-bubbles>
+              {% for m in t.messages %}<li class="fms-bubble{% if m.mine %} is-mine{% endif %}"><div class="fms-caption">{% if m.mine %}You{% else %}{{ m.from }}, HR{% endif %} · {{ m.when }}</div><p>{{ m.text }}</p></li>{% endfor %}
+            </ol>
+            <form class="fms-reply" data-reply-form novalidate>
+              <label class="ds-sr-only" for="reply-{{ t.id }}">Reply to HR</label>
+              <textarea class="ds-control" id="reply-{{ t.id }}" rows="2" placeholder="Write a reply…" data-reply-text></textarea>
+              <button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-send" aria-hidden="true"></i>Send</button>
+            </form>
+          </div>
+        </section>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="fms-tab-panel" role="tabpanel" id="panel-announcements" aria-labelledby="tab-announcements" tabindex="0" hidden>
+    <section class="ds-card ds-panel" aria-labelledby="ann-title">
+      <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="ann-title">Announcements</h2><p class="ds-panel-sub">Memos and policies ask you to confirm you've read them</p></div></div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for a in announcements %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ a.title }}</span><span class="fms-caption">{{ a.kind }} · {{ a.date }} · from HR</span></span>
+            {% if a.ack and not a.acked %}<button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-ack aria-label="Acknowledge {{ a.title }}">Acknowledge</button>{% elif a.acked %}<span class="ds-badge v-success s-sm">Acknowledged</span>{% endif %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <div class="fms-tab-panel" role="tabpanel" id="panel-notifications" aria-labelledby="tab-notifications" tabindex="0" hidden>
+    <section class="ds-card ds-panel" aria-labelledby="notes-title">
+      <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="notes-title">Notifications</h2><p class="ds-panel-sub">Non-urgent ones wait for your working hours</p></div></div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for n in notifications %}
+          <li><span class="ds-cell-person"><span class="ds-stat-icon {{ n.tone }}" aria-hidden="true"><i class="ti ti-{{ n.icon }}"></i></span><span class="fms-min0"><span class="fms-schedule-title">{{ n.title }}</span><span class="fms-caption">{{ n.detail }}</span></span></span><span class="fms-caption">{{ n.when }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal m-md" id="new-dialog" aria-labelledby="new-title" aria-describedby="new-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-new-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-pencil-plus"></i></div>
+        <h2 class="ds-modal-title" id="new-title">Message HR</h2>
+        <p class="ds-modal-desc" id="new-desc">Goes to the HR office. Quick questions are often answered faster by the HR assistant.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="new-subject">Subject <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <input class="ds-control" id="new-subject" aria-required="true" data-new-subject>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="new-body">Message <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <textarea class="ds-control" id="new-body" rows="4" aria-required="true" aria-describedby="new-error" data-new-body></textarea>
+        <p class="ds-error fms-field-error" id="new-error" data-new-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Add a subject and a message.</span></p>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-send" aria-hidden="true"></i>Send</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

@@ -1,38 +1,59 @@
 {% extends "hr/base.html" %}
-{# Leave approvals, step 1, as HR sees it (plan §3 Module 2, §5.4, §7.3 rule 8). Department heads decide step 1; HR
-   watches the aging and reminds. Data: hr/sample_data.py APPROVALS. #}
+{% load fms %}
+{# Leave approvals, step 1 (plan §3 Module 2, §5.4, §7.3 rule 8; usability task 10). The department head decides #}
+{# step 1 for their own department; HR sees every department's step 1, watches the aging and reminds. #}
+{# Data: hr/sample_data.py APPROVALS (the head's view is filtered to their department). #}
+
+{% block scripts %}{% if role.key == "head" %}<script src="{% asset 'hr/js/leave_queue.js' %}" defer></script>{% endif %}{% endblock %}
 
 {% block actions %}
+{% if role.key == "hr" %}
 <div class="ds-actions">
   <a class="ds-btn ds-btn-primary" href="{% url 'hr:leave_processing' %}"><i class="ti ti-file-check" aria-hidden="true"></i>Step 2 · {{ with_hr }} with HR</a>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block content %}
 {% include "hr/_flash.html" %}
 
+{% if role.key == "head" %}
+<div class="ds-alert v-info" role="status"><i class="ti ti-info-circle" aria-hidden="true"></i><div class="ds-alert-body">You decide step 1 for your department. Approved requests go to HR for step 2. Your own leave goes straight to HR, since no one approves their own.</div></div>
+{% else %}
 <div class="ds-alert v-info" role="status"><i class="ti ti-info-circle" aria-hidden="true"></i><div class="ds-alert-body">Department heads approve step 1, and HR takes over at step 2. A department head's own leave skips step 1 and comes straight to HR. Requests waiting more than 3 working days alert the approver.</div></div>
+{% endif %}
 
 <section class="ds-card ds-panel p-none" aria-labelledby="step1-title">
   <div class="ds-panel-head">
     <div class="fms-min0">
-      <h2 class="ds-panel-title" id="step1-title">Waiting for department heads</h2>
-      <p class="ds-panel-sub">{{ rows|length }} requests · {{ overdue }} over 3 working days · oldest first</p>
+      <h2 class="ds-panel-title" id="step1-title">{% if role.key == "head" %}Waiting for you{% else %}Waiting for department heads{% endif %}</h2>
+      <p class="ds-panel-sub"><span data-leave-left>{{ rows|length }}</span> requests · {{ overdue }} over 3 working days · oldest first</p>
     </div>
   </div>
   <div class="ds-table-wrap">
     <table class="ds-table">
-      <thead><tr><th scope="col">Employee</th><th scope="col">Leave</th><th scope="col" class="a-right">Days</th><th scope="col">Approver</th><th scope="col">Filed</th><th scope="col">Waiting</th><th scope="col" class="a-right"><span class="ds-sr-only">Action</span></th></tr></thead>
+      <thead><tr><th scope="col">Employee</th><th scope="col">Leave</th><th scope="col" class="a-right">Days</th>{% if role.key == "hr" %}<th scope="col">Approver</th>{% endif %}<th scope="col">Filed</th><th scope="col">Waiting</th>{% if role.key == "head" %}<th scope="col">Status</th><th scope="col">Remarks</th>{% endif %}<th scope="col" class="a-right"><span class="ds-sr-only">Action</span></th></tr></thead>
       <tbody>
         {% for r in rows %}
-        <tr>
+        <tr data-leave-row data-leave-next="With HR"{% if role.key == "head" %} data-step-label="Dean"{% endif %}>
           <td><div class="ds-cell-strong">{{ r.name }}</div><div class="ds-cell-sub">{{ r.department }}</div></td>
           <td><div class="ds-cell-strong">{{ r.type }}</div><div class="ds-cell-sub">{{ r.dates }}</div></td>
           <td class="a-right">{{ r.days }}</td>
-          <td>{{ r.head }}</td>
+          {% if role.key == "hr" %}<td>{{ r.head }}</td>{% endif %}
           <td>{{ r.filed }}</td>
           <td>{% if r.overdue %}<span class="ds-status v-warning"><span class="ds-dot d-warning"></span>{{ r.waiting }}</span>{% else %}<span class="ds-status"><span class="ds-dot"></span>{{ r.waiting }}</span>{% endif %}</td>
+          {% if role.key == "head" %}
+          <td data-leave-status><span class="ds-status"><span class="ds-dot"></span>Waiting for you</span></td>
+          <td class="fms-remarks" data-leave-note>—</td>
+          <td class="a-right">
+            <div class="fms-row fms-end" data-leave-actions>
+              <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-leave-decline data-dialog-open="decline-dialog" aria-label="Decline leave for {{ r.name }}">Decline</button>
+              <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-leave-approve data-dialog-open="approve-dialog" aria-label="Approve leave for {{ r.name }}"><i class="ti ti-check" aria-hidden="true"></i>Approve</button>
+            </div>
+          </td>
+          {% else %}
           <td class="a-right">{% if r.overdue %}<button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Reminder sent to {{ r.head }} about {{ r.name }}'s {{ r.type|lower }}." aria-label="Remind {{ r.head }} about {{ r.name }}"><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind</button>{% endif %}</td>
+          {% endif %}
         </tr>
         {% endfor %}
       </tbody>
@@ -40,3 +61,28 @@
   </div>
 </section>
 {% endblock %}
+
+{% block dialogs %}{% if role.key == "head" %}
+<dialog class="ds-modal m-md" id="approve-dialog" aria-labelledby="approve-title" aria-describedby="approve-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-approve-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-check"></i></div>
+        <h2 class="ds-modal-title" id="approve-title">Approve leave</h2>
+        <p class="ds-modal-desc" id="approve-desc"><span data-approve-for></span>. It goes to HR for step 2, and the employee is notified.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="approve-remark">Remark <span class="fms-caption">(optional)</span></label>
+        <textarea class="ds-control" id="approve-remark" rows="2" placeholder="e.g. Classes covered by Sky Tolentino." data-approve-remark></textarea>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-check" aria-hidden="true"></i>Approve</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+{% include "hr/_leave_decline_dialog.html" %}
+{% endif %}{% endblock %}

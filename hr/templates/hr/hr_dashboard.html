@@ -1,10 +1,10 @@
 {% extends "hr/base.html" %}
-{% load static %}
+{% load fms %}
 {# HR dashboard: charts with a department filter, export, and the burnout, retention and stagnation panels
    (plan §3 Module 6, §6). Server-drawn SVG; the filter only shows and hides finished charts.
    Data: hr/sample_data.py HR_DASHBOARD. #}
 
-{% block scripts %}<script src="{% static 'hr/js/hr_dashboard.js' %}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% asset 'hr/js/hr_dashboard.js' %}" defer></script><script src="{% asset 'hr/js/chart_tip.js' %}" defer></script>{% endblock %}
 
 {% block actions %}
 <div class="ds-actions">

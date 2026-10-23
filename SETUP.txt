@@ -37,10 +37,12 @@ Any free port works.
 
 Pages:
 
-    /                   Dashboard (layout sample)
+    /                   HR officer dashboard
+    /me/                Employee dashboard (choose "Employee" in View as)
     /ui/                UI kit (every component)
 
-    Every other screen is in the sidebar. Most are placeholders for now.
+    Every other screen is in the sidebar. Use "View as" at the bottom of the
+    sidebar to switch roles: each role sees its own screens.
 
 Stop the server with Ctrl+C.
 

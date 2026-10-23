@@ -1,0 +1,23 @@
+{# Decline a leave request with a remark, at either step of the approval chain. Wired by leave_queue.js. #}
+<dialog class="ds-modal m-md" id="decline-dialog" aria-labelledby="decline-title" aria-describedby="decline-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-decline-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-x"></i></div>
+        <h2 class="ds-modal-title" id="decline-title">Decline leave</h2>
+        <p class="ds-modal-desc" id="decline-desc">The days go back to the employee's balance. They see your remark and can refile.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="decline-remark">Remark <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <textarea class="ds-control" id="decline-remark" aria-required="true" aria-describedby="decline-error" data-decline-remark></textarea>
+        <p class="ds-error fms-field-error" id="decline-error" data-decline-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Add a remark so the employee knows why.</span></p>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Decline</button>
+      </div>
+    </div>
+  </form>
+</dialog>

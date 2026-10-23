@@ -1,0 +1,31 @@
+{% extends "hr/base.html" %}
+{% load fms %}
+{# HR assistant, employee view (proposal Module 4; plan §3 Module 4; usability task 7). Answers from the FAQ with the #}
+{# same rule HR tests with (faq.js), and hands anything it can't match to HR. Data: hr/sample_data.py ME_ASSISTANT. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/faq.js' %}" defer></script>
+<script src="{% asset 'hr/js/me_assistant.js' %}" defer></script>{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+<section class="ds-card ds-panel fms-chat" aria-labelledby="chat-title">
+  <div class="ds-panel-head">
+    <div class="fms-min0"><h2 class="ds-panel-title" id="chat-title">Ask the HR assistant</h2><p class="ds-panel-sub">Answers come from HR's FAQ. If it isn't sure, it passes your question to HR.</p></div>
+  </div>
+  <div class="ds-panel-body ds-stack">
+    {{ faq_answers|json_script:"faq-data" }}
+    <ol class="fms-bubbles" aria-label="Conversation" aria-live="polite" data-chat-log>
+      <li class="fms-bubble"><div class="fms-caption">HR assistant</div><p>Hi Robin! Ask me about leave, pay, your records or evaluations.</p></li>
+    </ol>
+    <div class="fms-row" role="group" aria-label="Suggested questions">
+      {% for chip in chips %}<button type="button" class="ds-badge fms-chip" data-chat-chip>{{ chip }}</button>{% endfor %}
+    </div>
+    <form class="fms-reply" data-chat-form novalidate>
+      <label class="ds-sr-only" for="chat-question">Your question</label>
+      <input class="ds-control" id="chat-question" placeholder="e.g. How do I file sick leave?" autocomplete="off" data-chat-question>
+      <button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-send" aria-hidden="true"></i>Ask</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

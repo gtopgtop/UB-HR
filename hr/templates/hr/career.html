@@ -1,14 +1,20 @@
 {% extends "hr/base.html" %}
+{% load fms %}
 {# Career progress, HR officer view (plan §3 Module 3, §5.3, §6.3, §7.4). HR verifies requirement progress. Data: hr/sample_data.py CAREER. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/verify.js' %}" defer></script>
+<script src="{% asset 'hr/js/career.js' %}" defer></script>{% endblock %}
 
 {% block actions %}
 <div class="ds-actions">
-  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
-  <a class="ds-btn ds-btn-primary" href="{% url 'hr:settings' %}"><i class="ti ti-settings" aria-hidden="true"></i>Career tracks</a>
+  <a class="ds-btn ds-btn-secondary" href="{% url 'hr:tracker' %}"><i class="ti ti-stairs-up" aria-hidden="true"></i>Progress tracker</a>
+  <button type="button" class="ds-btn ds-btn-secondary" data-career-csv><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
 </div>
 {% endblock %}
 
 {% block content %}
+{% include "hr/_flash.html" %}
+
 <div class="fms-grid is-stats">
   {% for stat in stats %}
   <div class="ds-card ds-stat">
@@ -38,9 +44,9 @@
           <li><span class="fms-swatch is-mid"></span>50–99%</li>
           <li><span class="fms-swatch is-ready"></span>Ready</li>
         </ul>
-        <div class="fms-meters">
+        <div class="fms-meters" data-pipeline>
           {% for dept in pipeline %}
-          <div class="fms-meter">
+          <div class="fms-meter" data-pipeline-row="{{ dept.name }}|{{ dept.low }}|{{ dept.mid }}|{{ dept.ready }}">
             <div class="fms-meter-head"><span>{{ dept.name }}</span><span class="fms-meter-value"><strong>{{ dept.ready }}</strong> ready · {{ dept.total }} below the top</span></div>
             <div class="fms-stackbar" role="img" aria-label="{{ dept.name }}: {{ dept.low }} under 50%, {{ dept.mid }} at 50 to 99%, {{ dept.ready }} ready">
               <i class="is-low" style="width: {{ dept.low_pct }}%"></i><i class="is-mid" style="width: {{ dept.mid_pct }}%"></i><i class="is-ready" style="width: {{ dept.ready_pct }}%"></i>
@@ -63,21 +69,58 @@
           <thead><tr><th scope="col">Employee</th><th scope="col">Requirement</th><th scope="col">Proof</th><th scope="col">Submitted</th><th scope="col" class="a-right"><span class="ds-sr-only">Actions</span></th></tr></thead>
           <tbody>
             {% for item in verify %}
-            <tr>
-              <td><div class="ds-cell-strong">{{ item.name }}</div><div class="ds-cell-sub">{{ item.department }}</div></td>
+            <tr data-req-row>
+              <td><div class="ds-cell-strong">{% if item.tracker %}<a class="fms-link" href="{% url 'hr:tracker' %}#{{ item.tracker }}">{{ item.name }}</a>{% else %}{{ item.name }}{% endif %}</div><div class="ds-cell-sub">{{ item.department }}</div></td>
               <td>{{ item.requirement }}<div class="ds-cell-sub">{{ item.progress }}</div></td>
               <td><span class="fms-row"><i class="ti ti-file-text" aria-hidden="true"></i>{{ item.proof }}</span></td>
-              <td>{{ item.submitted }}</td>
+              <td data-req-status>{{ item.submitted }}</td>
               <td class="a-right">
-                <div class="fms-row fms-end">
-                  <button type="button" class="ds-row-action" aria-label="View proof from {{ item.name }}"><i class="ti ti-eye" aria-hidden="true"></i></button>
-                  <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" aria-label="Verify {{ item.requirement|lower }} for {{ item.name }}"><i class="ti ti-check" aria-hidden="true"></i>Verify</button>
-                </div>
+                <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-verify data-verify-done="It now counts toward the next rank." data-verify-name="{{ item.name }}" data-verify-item="{{ item.requirement }}" data-verify-proof="{{ item.proof }}" aria-label="Verify {{ item.requirement|lower }} for {{ item.name }}"><i class="ti ti-check" aria-hidden="true"></i>Verify</button>
               </td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="goals-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="goals-title">Goals this semester</h2>
+          <p class="ds-panel-sub">Due {{ goals_due }} · <strong>{{ goals_set.value }}</strong> of {{ goals_set.total }} employees have set one · the department head comments</p>
+        </div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Reminder sent to {{ goals_low|length }} department heads: {{ goals_low|join:', ' }}. Goals are due {{ goals_due }}."><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind {{ goals_low|length }} under 80%</button>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <div class="ds-table-wrap">
+          <table class="ds-table fms-num">
+            <thead><tr><th scope="col">Department</th><th scope="col">Goal set</th><th scope="col" class="a-right">Average progress</th><th scope="col" class="a-right">Inactive 60+ days</th></tr></thead>
+            <tbody>
+              {% for g in goals %}
+              <tr>
+                <th scope="row" class="ds-cell-strong">{{ g.name }}</th>
+                <td>
+                  <div class="fms-meter">
+                    <div class="fms-meter-head"><span class="ds-sr-only">Employees with a goal</span><span class="fms-meter-value"><strong>{{ g.value }}</strong> of {{ g.total }}</span></div>
+                    <div class="fms-meter-track{% if g.low %} is-warning{% endif %}" aria-hidden="true"><i style="width: {{ g.pct }}%"></i></div>
+                  </div>
+                </td>
+                <td class="a-right">{{ g.progress }}%</td>
+                <td class="a-right">{% if g.inactive %}<strong>{{ g.inactive }}</strong>{% else %}—{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3 class="fms-ledger-title">Longest inactive</h3>
+          <ul class="fms-list">
+            {% for g in stalled_goals %}
+            <li><span class="fms-min0"><span class="fms-schedule-title">{{ g.goal }}</span><span class="fms-caption">{% if g.tracker %}<a class="fms-link" href="{% url 'hr:tracker' %}#{{ g.tracker }}">{{ g.name }}</a>{% else %}{{ g.name }}{% endif %} · {{ g.department }} · {{ g.progress }}% · no update in {{ g.idle }}</span></span><span class="ds-badge v-warning s-sm">Inactive</span></li>
+            {% endfor %}
+          </ul>
+        </div>
       </div>
     </section>
 
@@ -118,7 +161,7 @@
       <div class="ds-panel-body">
         <ul class="fms-list">
           {% for item in ready %}
-          <li><span class="fms-min0"><span class="fms-schedule-title">{{ item.name }}</span><span class="fms-caption">{{ item.move }}</span><span class="fms-caption">{{ item.department }} · {{ item.since }}</span></span><span class="ds-badge v-success s-sm">Ready</span></li>
+          <li><span class="fms-min0"><span class="fms-schedule-title">{% if item.tracker %}<a class="fms-link" href="{% url 'hr:tracker' %}#{{ item.tracker }}">{{ item.name }}</a>{% else %}{{ item.name }}{% endif %}</span><span class="fms-caption">{{ item.move }}</span><span class="fms-caption">{{ item.department }} · {{ item.since }}</span></span><span class="ds-badge v-success s-sm">Ready</span></li>
           {% endfor %}
         </ul>
       </div>
@@ -136,7 +179,7 @@
         <div class="fms-meters">
           {% for item in stagnant %}
           <div class="fms-meter">
-            <div class="fms-meter-head"><span>{{ item.name }} · {{ item.rank }}</span><span class="fms-meter-value"><strong>{{ item.value }}</strong> of {{ item.total }} met</span></div>
+            <div class="fms-meter-head"><span>{% if item.tracker %}<a class="fms-link" href="{% url 'hr:tracker' %}#{{ item.tracker }}">{{ item.name }}</a>{% else %}{{ item.name }}{% endif %} · {{ item.rank }}</span><span class="fms-meter-value"><strong>{{ item.value }}</strong> of {{ item.total }} met</span></div>
             <div class="fms-meter-track is-warning" aria-hidden="true"><i style="width: {{ item.pct }}%"></i></div>
             <div class="fms-caption">{{ item.years }}</div>
           </div>
@@ -194,10 +237,10 @@
           <h2 class="ds-panel-title" id="recognition-title">Recognition</h2>
           <p class="ds-panel-sub">Recent commendations</p>
         </div>
-        <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm"><i class="ti ti-star" aria-hidden="true"></i>Commend</button>
+        <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-dialog-open="commend-dialog" data-commend=""><i class="ti ti-star" aria-hidden="true"></i>Commend</button>
       </div>
       <div class="ds-panel-body">
-        <ul class="fms-list">
+        <ul class="fms-list" data-recognition-list>
           {% for item in recognition %}
           <li><span class="fms-min0"><span class="fms-schedule-title">{{ item.name }}</span><span class="fms-muted">{{ item.for }}</span><span class="fms-caption">{{ item.department }} · from the {{ item.by|lower }} · {{ item.when }}</span></span></li>
           {% endfor %}
@@ -207,4 +250,9 @@
 
   </div>
 </div>
+{% endblock %}
+
+{% block dialogs %}
+{% include "hr/_verify_dialog.html" %}
+{% include "hr/_commend_dialog.html" %}
 {% endblock %}

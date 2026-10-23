@@ -1,0 +1,132 @@
+{% extends "hr/base.html" %}
+{% load fms %}
+{# Career Progress Tracker, HR officer view (proposal Module 3; plan §3 Module 3, §5.3). One employee at a time; #}
+{# HR verifies proof and follows up. The employee's own tracker comes with the role switcher. Data: hr/sample_data.py TRACKER. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/verify.js' %}" defer></script>
+<script src="{% asset 'hr/js/career.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <div class="ds-field fms-inline-field">
+    <label class="ds-sr-only" for="tracker-person">Employee</label>
+    <select class="ds-control" id="tracker-person" data-tracker-select>
+      {% for p in people %}<option value="{{ p.slug }}"{% if p == person %} selected{% endif %}>{{ p.name }} · {{ p.rank }}</option>{% endfor %}
+    </select>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+{% for p in people %}
+<div class="ds-stack" data-tracker-person="{{ p.slug }}"{% if p != person %} hidden{% endif %}>
+  <div class="ds-card fms-profile">
+    <div class="ds-avatar fms-avatar-lg" aria-hidden="true">{{ p.initials }}</div>
+    <div class="fms-grow">
+      <div class="fms-profile-name">{{ p.name }}</div>
+      <div class="fms-muted">{{ p.rank }} · {{ p.department }} · {{ p.track }} track</div>
+    </div>
+    <div class="fms-row">
+      {% for flag in p.flags %}<span class="ds-badge v-{% if flag == 'Promotion-ready' %}success{% elif flag == 'Stagnant' %}error{% elif flag == 'Feedback overdue' %}warning{% else %}info{% endif %}">{{ flag }}</span>{% empty %}<span class="ds-badge">On track</span>{% endfor %}
+      <a class="ds-btn ds-btn-secondary ds-btn-sm" href="{% url 'hr:messages' %}" aria-label="Message {{ p.name }}"><i class="ti ti-message-2" aria-hidden="true"></i>Message</a>
+    </div>
+  </div>
+
+  {% include "hr/_career_ladder.html" %}
+
+  <div class="fms-dash">
+    <div class="fms-col">
+      <section class="ds-card ds-panel p-none" aria-labelledby="reqs-{{ p.slug }}">
+        <div class="ds-panel-head">
+          <div class="fms-min0"><h2 class="ds-panel-title" id="reqs-{{ p.slug }}">{% if p.next %}What {{ p.next }} needs{% else %}Requirements{% endif %}</h2><p class="ds-panel-sub">An item counts once HR checks the proof</p></div>
+        </div>
+        <div class="ds-table-wrap">
+          <table class="ds-table">
+            <thead><tr><th scope="col">Requirement</th><th scope="col">Progress</th><th scope="col">Status</th><th scope="col" class="a-right"><span class="ds-sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              {% for r in p.requirements %}
+              <tr data-req-row>
+                <th scope="row" class="ds-cell-strong">{{ r.label }}</th>
+                <td>{{ r.detail }}</td>
+                <td data-req-status><span class="ds-status{% if r.tone %} v-{{ r.tone }}{% endif %}"><span class="ds-dot{% if r.tone %} d-{{ r.tone }}{% endif %}"></span>{{ r.state_label }}</span></td>
+                <td class="a-right">
+                  {% if r.state == "verify" %}
+                  <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-verify data-verify-done="It now counts toward the next rank." data-verify-name="{{ p.name }}" data-verify-item="{{ r.label }}" data-verify-proof="{{ r.proof }}" aria-label="Verify {{ r.label|lower }} for {{ p.name }}"><i class="ti ti-check" aria-hidden="true"></i>Verify</button>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="ds-card ds-panel" aria-labelledby="goals-{{ p.slug }}">
+        <div class="ds-panel-head">
+          <div class="fms-min0"><h2 class="ds-panel-title" id="goals-{{ p.slug }}">Goals</h2><p class="ds-panel-sub">Set by {{ p.name }} · the department head comments</p></div>
+        </div>
+        <div class="ds-panel-body">
+          <div class="fms-meters">
+            {% for g in p.goals %}
+            <div class="fms-meter">
+              <div class="fms-meter-head"><span>{{ g.goal }}</span><span class="fms-meter-value"><strong>{{ g.value }}%</strong></span></div>
+              <div class="fms-meter-track{% if g.idle %} is-warning{% endif %}" aria-hidden="true"><i style="width: {{ g.pct }}%"></i></div>
+              <div class="fms-caption">Updated {{ g.updated }}{% if g.idle %} · <strong>inactive over 60 days</strong>{% endif %}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="fms-col is-side">
+      <section class="ds-card ds-panel" aria-labelledby="ratings-{{ p.slug }}">
+        <div class="ds-panel-head">
+          <div class="fms-min0"><h2 class="ds-panel-title" id="ratings-{{ p.slug }}">Evaluation results</h2><p class="ds-panel-sub">Overall rating by cycle</p></div>
+          <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:evaluations' %}">Evaluations</a>
+        </div>
+        <div class="ds-panel-body">
+          <div class="fms-figure">
+            <div class="fms-figure-value">{{ p.rating }}<span> / 5</span></div>
+            <figure class="fms-spark">
+              <svg viewBox="0 0 {{ p.ratings.width }} {{ p.ratings.height }}" width="{{ p.ratings.width }}" height="{{ p.ratings.height }}" role="img" aria-label="{{ p.name }}'s rating by cycle: {{ p.ratings.summary }}">
+                <polyline points="{{ p.ratings.points }}"/>
+                {% for dot in p.ratings.dots %}<circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="4"{% if forloop.last %} class="is-current"{% endif %}><title>{{ dot.label }}: {{ dot.value }}</title></circle>{% endfor %}
+              </svg>
+              <figcaption class="fms-caption">Last {{ p.ratings.dots|length }} cycles</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="ds-card ds-panel" aria-labelledby="feedback-{{ p.slug }}">
+        <div class="ds-panel-head">
+          <div class="fms-min0"><h2 class="ds-panel-title" id="feedback-{{ p.slug }}">Feedback and recognition</h2><p class="ds-panel-sub">Between evaluation cycles</p></div>
+        </div>
+        <div class="ds-panel-body ds-stack">
+          <ul class="fms-list" data-recognition-list>
+            {% for f in p.feedback %}
+            <li><span class="fms-min0"><span class="fms-muted">“{{ f.text }}”</span><span class="fms-caption">Feedback note · {{ f.from }} · {{ f.when }}</span></span></li>
+            {% endfor %}
+            {% for r in p.recognition %}
+            <li><span class="fms-min0"><span class="fms-schedule-title"><i class="ti ti-star" aria-hidden="true"></i> {{ r.for }}</span><span class="fms-caption">Commendation · from the {{ r.by|lower }} · {{ r.when }}</span></span></li>
+            {% endfor %}
+          </ul>
+          <div class="fms-row">
+            {% if "Feedback overdue" in p.flags %}<button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Asked {{ p.feedback.0.from }} for a feedback note on {{ p.name }}."><i class="ti ti-message-plus" aria-hidden="true"></i>Ask for a feedback note</button>{% endif %}
+            <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-dialog-open="commend-dialog" data-commend="{{ p.name }}"><i class="ti ti-star" aria-hidden="true"></i>Commend</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block dialogs %}
+{% include "hr/_verify_dialog.html" %}
+{% include "hr/_commend_dialog.html" %}
+{% endblock %}

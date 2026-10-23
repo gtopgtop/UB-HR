@@ -3,13 +3,15 @@
 
 {% block actions %}
 <div class="ds-actions">
-  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-download" aria-hidden="true"></i>Export report</button>
+  <button type="button" class="ds-btn ds-btn-secondary" data-csv-stats="[data-dashboard-stats]" data-csv-name="hr-dashboard-2026-10-12.csv"><i class="ti ti-download" aria-hidden="true"></i>Export report</button>
   <a class="ds-btn ds-btn-primary" href="{% url 'hr:communications' %}"><i class="ti ti-speakerphone" aria-hidden="true"></i>New announcement</a>
 </div>
 {% endblock %}
 
 {% block content %}
-<div class="fms-grid is-stats">
+{% include "hr/_flash.html" %}
+
+<div class="fms-grid is-stats" data-dashboard-stats>
   {% for stat in stats %}
   <div class="ds-card ds-stat">
     <div class="ds-stat-icon {{ stat.tone }}" aria-hidden="true"><i class="ti ti-{{ stat.icon }}"></i></div>

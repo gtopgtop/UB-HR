@@ -1,0 +1,219 @@
+{% extends "hr/base.html" %}
+{% load fms %}
+{# Wellness officer dashboard (plan §3 Module 5, §6.1, §7.3, §9.2): grouped trends and the stress heatmap,
+   consented cases, counselor requests, the wellness-topic concern inbox and interventions.
+   Data: hr/sample_data.py WELLNESS_OFFICE. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/chart_tip.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-secondary" data-say="Aggregates exported as a CSV. Consented cases are never included." data-say-repeat><i class="ti ti-table-export" aria-hidden="true"></i>Export aggregates</button>
+  <button type="button" class="ds-btn ds-btn-primary" data-say="Session slot opened. Pick the employee from Counselor requests to send the invite." data-say-repeat><i class="ti ti-calendar-plus" aria-hidden="true"></i>Schedule a session</button>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+{% include "hr/_role_preview.html" with note="The guidance counselor's screen. Consented cases show only employees who chose to share their check-ins; HR officers never see them." %}
+
+<div class="fms-grid is-stats">
+  {% for stat in stats %}
+  <div class="ds-card ds-stat">
+    <div class="ds-stat-icon {{ stat.tone }}" aria-hidden="true"><i class="ti ti-{{ stat.icon }}"></i></div>
+    <div class="fms-grow">
+      <div class="ds-stat-value">{{ stat.value }}</div>
+      <div class="ds-stat-label">{{ stat.label }}</div>
+      <div class="ds-stat-hint">{{ stat.hint }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="fms-dash">
+  <div class="fms-col">
+
+    <section class="ds-card ds-panel" aria-labelledby="heat-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="heat-title">Stress by department and week</h2>
+          <p class="ds-panel-sub">Average check-in stress, 1 to 5 · groups of 5 or more only</p>
+        </div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <ul class="fms-legend">
+          {% for l in heat_legend %}<li><span class="fms-swatch h-{{ l.shade }}" aria-hidden="true"></span>{{ l.label }}</li>{% endfor %}
+        </ul>
+        <div class="ds-table-wrap">
+          <table class="fms-heat">
+            <caption class="ds-sr-only">Average stress by department and week</caption>
+            <thead><tr><th scope="col">Department</th>{% for w in weeks %}<th scope="col">{{ w.label }}{% if w.exam %}<span>{{ w.exam }}</span>{% endif %}</th>{% endfor %}</tr></thead>
+            <tbody>
+              {% for row in heat %}
+              <tr><th scope="row">{{ row.name }}</th>{% for c in row.cells %}<td class="h-{{ c.shade }}{% if c.exam %} is-exam{% endif %}" title="{{ row.name }}, week of {{ c.week }}: {{ c.value }}">{{ c.value }}</td>{% endfor %}</tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr><th scope="row">Whole school</th>{% for c in heat_school %}<td class="h-{{ c.shade }}{% if c.exam %} is-exam{% endif %}" title="Whole school, week of {{ c.week }}: {{ c.value }}">{{ c.value }}</td>{% endfor %}</tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="fms-caption">Underlined weeks are exam weeks. Midterms start Oct 19.</p>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="trend-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="trend-title">Mood and stress</h2>
+          <p class="ds-panel-sub">Whole school, weekly average out of 5</p>
+        </div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <ul class="fms-legend">
+          <li><span class="fms-swatch is-mood" aria-hidden="true"></span>Mood (dashed)</li>
+          <li><span class="fms-swatch is-stress" aria-hidden="true"></span>Stress</li>
+        </ul>
+        <figure class="fms-chart">
+          <svg viewBox="0 0 {{ mood.width }} {{ mood.height }}" role="img" aria-label="Mood by week: {{ mood.summary }}. Stress by week: {{ stress.summary }}">
+            {% for t in mood.ticks %}<line class="fms-grid-line" x1="0" x2="{{ mood.width }}" y1="{{ t.y }}" y2="{{ t.y }}"/><text class="fms-tick" x="0" y="{{ t.y|add:'-4' }}">{{ t.value }}</text>{% endfor %}
+            <polyline class="fms-line is-mood" points="{{ mood.points }}"/>
+            <polyline class="fms-line is-stress" points="{{ stress.points }}"/>
+            {% for d in mood.dots %}
+            <circle class="fms-dot is-mood" cx="{{ d.x }}" cy="{{ d.y }}" r="4"/>
+            <circle class="fms-hit" cx="{{ d.x }}" cy="{{ d.y }}" r="12" tabindex="0" data-tip="Week of {{ d.label }}: mood {{ d.value }}"><title>Week of {{ d.label }}: mood {{ d.value }}</title></circle>
+            <text class="fms-tick" x="{{ d.x }}" y="{{ mood.height|add:'-4' }}" text-anchor="middle">{{ d.label }}</text>
+            {% endfor %}
+            {% for d in stress.dots %}
+            <circle class="fms-dot is-stress" cx="{{ d.x }}" cy="{{ d.y }}" r="4"/>
+            <circle class="fms-hit" cx="{{ d.x }}" cy="{{ d.y }}" r="12" tabindex="0" data-tip="Week of {{ d.label }}: stress {{ d.value }}"><title>Week of {{ d.label }}: stress {{ d.value }}</title></circle>
+            {% endfor %}
+            {% with m=mood.dots|last s=stress.dots|last %}
+            <text class="fms-value" x="{{ m.x }}" y="{{ m.y|add:'-10' }}" text-anchor="end">Mood {{ m.value }}</text>
+            <text class="fms-value" x="{{ s.x }}" y="{{ s.y|add:'20' }}" text-anchor="end">Stress {{ s.value }}</text>
+            {% endwith %}
+          </svg>
+        </figure>
+        <details class="fms-table-view">
+          <summary>Show as a table</summary>
+          <div class="ds-table-wrap">
+            <table class="ds-table fms-num">
+              <thead><tr><th scope="col">Week of</th><th scope="col" class="a-right">Mood</th><th scope="col" class="a-right">Stress</th></tr></thead>
+              <tbody>{% for r in trend_rows %}<tr><th scope="row">{{ r.week }}</th><td class="a-right">{{ r.mood }}</td><td class="a-right">{{ r.stress }}</td></tr>{% endfor %}</tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel p-none" aria-labelledby="cases-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="cases-title">Consented cases</h2>
+          <p class="ds-panel-sub">Consent lasts {{ consent_days }} days and can be revoked at any time · every view is logged</p>
+        </div>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Employee</th><th scope="col">Latest check-in</th><th scope="col">Trend</th><th scope="col">Consent</th><th scope="col">Next step</th></tr></thead>
+          <tbody>
+            {% for c in consented %}
+            <tr>
+              <td><div class="ds-cell-person"><div class="ds-avatar" aria-hidden="true">{{ c.initials }}</div><div><div class="ds-cell-strong">{{ c.name }}</div><div class="ds-cell-sub">{{ c.department }}</div></div></div></td>
+              <td><div>{{ c.last }}</div><div class="ds-cell-sub">Mood {{ c.mood|floatformat:0 }} · stress {{ c.stress|floatformat:0 }}</div></td>
+              <td><span class="ds-status{% if c.tone %} v-{{ c.tone }}{% endif %}"><span class="ds-dot{% if c.tone %} d-{{ c.tone }}{% endif %}"></span>{{ c.trend }}</span></td>
+              <td>{% if c.expiring %}<span class="ds-badge v-warning s-sm">Ends {{ c.expires }}</span>{% else %}<span class="fms-caption">Until {{ c.expires }}</span>{% endif %}<div class="ds-cell-sub">Since {{ c.granted }}</div></td>
+              <td>{{ c.next }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="fms-col is-side">
+    <section class="ds-card ds-panel" aria-labelledby="requests-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="requests-title">Counselor requests</h2><p class="ds-panel-sub">Employees asking to talk to someone</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for r in requests %}
+          <li>
+            <span class="fms-min0"><span class="fms-schedule-title">{{ r.who }}</span><span class="fms-caption">{% if r.department %}{{ r.department }} · {% endif %}{{ r.mode }} · {{ r.prefers }} · {{ r.received }}</span>{% if r.note %}<span class="fms-muted">{{ r.note }}</span>{% endif %}</span>
+            {% if r.status == "New" %}<button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Session invite sent to {{ r.who }}.">Schedule</button>{% else %}<span class="ds-badge v-{{ r.tone }} s-sm">{{ r.status }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="concerns-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="concerns-title">Anonymous concerns</h2><p class="ds-panel-sub">Wellness topics · no sender is stored</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for c in concerns %}
+          <li>
+            <span class="fms-min0"><span class="fms-schedule-title">{{ c.topic }}</span><span class="fms-muted">{{ c.excerpt }}</span><span class="fms-caption">{{ c.code }} · {{ c.received }}</span></span>
+            {% if c.status == "New" %}<button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Reply sent. The sender sees it when they follow up with their claim code.">Reply</button>{% else %}<span class="ds-badge v-{{ c.tone }} s-sm">{{ c.status }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="participation-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="participation-title">Check-in participation</h2><p class="ds-panel-sub">A steady drop is a signal of its own</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-figure">
+          <div>
+            <div class="fms-figure-value">{{ participation_now }}<span>%</span></div>
+            <span class="ds-badge v-warning s-sm">−{{ participation_drop }} points in {{ participation.dots|length }} weeks</span>
+          </div>
+          <figure class="fms-spark">
+            <svg viewBox="0 0 {{ participation.width }} {{ participation.height }}" width="{{ participation.width }}" height="{{ participation.height }}" role="img" aria-label="Check-in participation by week: {{ participation.summary }}">
+              <polyline points="{{ participation.points }}"/>
+              {% for dot in participation.dots %}<circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="4"{% if forloop.last %} class="is-current"{% endif %}><title>Week of {{ dot.label }}: {{ dot.value }}%</title></circle>{% endfor %}
+            </svg>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="burnout-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="burnout-title">Burnout risk</h2><p class="ds-panel-sub">By department · Watch from 50, High from 70</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for b in burnout %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ b.name }}</span><span class="fms-meter-value"><strong>{{ b.score }}</strong> <span class="ds-badge v-{{ b.tone }} s-sm">{{ b.level }}</span></span></div>
+            <div class="fms-meter-track is-{{ b.tone }}" aria-hidden="true"><i style="width: {{ b.pct }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="interventions-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="interventions-title">Interventions</h2><p class="ds-panel-sub">With HR and on its own</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for item in interventions %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ item.title }}</span><span class="fms-caption">{{ item.group }} · {{ item.owner }} · {{ item.follow_up }}</span></span><span class="ds-badge{% if item.tone %} v-{{ item.tone }}{% endif %} s-sm">{{ item.status }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="fms-tip" role="tooltip" data-chart-tip hidden></div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "hr/base.html" %}
+{# Shown when the "View as" role may not open a page (plan §7.4). The prototype has no login, so it explains #}
+{# who can, and offers the role's own landing page. #}
+
+{% block content %}
+<section class="ds-card ds-panel">
+  <div class="ds-panel-body">
+    <div class="ds-empty">
+      <div class="ds-empty-icon" aria-hidden="true"><i class="ti ti-lock"></i></div>
+      <div class="ds-empty-title">Not available as {{ role.label }}</div>
+      <p class="ds-empty-sub">{{ page.title }} is for {% for r in allowed %}{{ r.label }}{% if not forloop.last %}{% if forloop.revcounter == 2 %} and {% else %}, {% endif %}{% endif %}{% endfor %}. Access follows the permission matrix, so each role sees only what it needs.</p>
+      <div class="fms-row fms-center">
+        <a class="ds-btn ds-btn-primary" href="{{ landing.url }}">Go to {{ landing.title }}</a>
+        {% with first=allowed.0 %}<a class="ds-btn ds-btn-secondary" href="{% url 'hr:view_as' %}?role={{ first.key }}&amp;next={{ page.url|urlencode }}">View as {{ first.label }}</a>{% endwith %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

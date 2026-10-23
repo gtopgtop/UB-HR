@@ -1,0 +1,187 @@
+{% extends "hr/base.html" %}
+{% load fms %}
+{# Engagement surveys, HR officer view (proposal Module 5; plan §3 Module 5, §7.3). HR builds anonymous surveys and #}
+{# reads aggregate results only: no answer carries a name, and groups under 5 are not shown. Data: hr/sample_data.py SURVEYS_PAGE. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/surveys.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="survey-dialog"><i class="ti ti-plus" aria-hidden="true"></i>New survey</button>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+<div class="ds-alert v-info" role="status"><i class="ti ti-lock" aria-hidden="true"></i><div class="ds-alert-body">Answers carry no name and no employee number. Results appear only for groups of {{ small_group }} or more, so no one's answer can be worked out.</div></div>
+
+<div class="fms-grid is-stats">
+  {% for stat in stats %}
+  <div class="ds-card ds-stat">
+    <div class="ds-stat-icon {{ stat.tone }}" aria-hidden="true"><i class="ti ti-{{ stat.icon }}"></i></div>
+    <div class="fms-grow">
+      <div class="ds-stat-value">{{ stat.value }}</div>
+      <div class="ds-stat-label">{{ stat.label }}</div>
+      <div class="ds-stat-hint">{{ stat.hint }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<section class="ds-card ds-panel p-none" aria-labelledby="surveys-title">
+  <div class="ds-panel-head">
+    <div class="fms-min0"><h2 class="ds-panel-title" id="surveys-title">Surveys</h2><p class="ds-panel-sub">Open, scheduled, drafts and closed</p></div>
+  </div>
+  <div class="ds-table-wrap">
+    <table class="ds-table">
+      <thead><tr><th scope="col">Survey</th><th scope="col">Audience</th><th scope="col">Status</th><th scope="col">Responses</th><th scope="col" class="a-right"><span class="ds-sr-only">Actions</span></th></tr></thead>
+      <tbody data-survey-list>
+        {% for s in surveys %}
+        <tr>
+          <td><div class="ds-cell-strong">{{ s.title }}</div><div class="ds-cell-sub">{{ s.questions }} questions · {{ s.dates }}</div></td>
+          <td>{{ s.audience }}</td>
+          <td><span class="ds-status{% if s.tone %} v-{{ s.tone }}{% endif %}"><span class="ds-dot{% if s.tone %} d-{{ s.tone }}{% endif %}"></span>{{ s.status }}</span></td>
+          <td>
+            {% if s.status == "Open" or s.status == "Closed" %}
+            <div class="fms-meter">
+              <div class="fms-meter-head"><span class="ds-sr-only">Responses</span><span class="fms-meter-value"><strong>{{ s.value }}</strong> of {{ s.total }} · {{ s.pct }}%</span></div>
+              <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ s.pct }}%"></i></div>
+            </div>
+            {% else %}<span class="fms-caption">{{ s.total }} in the audience</span>{% endif %}
+          </td>
+          <td class="a-right">
+            {% if s.status == "Open" %}<button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Reminder sent to all {{ s.total }} people in the audience. The survey can't tell who has answered, so everyone gets it."><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind</button>
+            {% elif s.status == "Draft" %}<button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="{{ s.title }} is scheduled to open Oct 26 for {{ s.audience|lower }}."><i class="ti ti-calendar-event" aria-hidden="true"></i>Schedule</button>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="fms-dash">
+  <div class="fms-col">
+    <section class="ds-card ds-panel" aria-labelledby="results-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="results-title">Results: {{ survey.title }}</h2><p class="ds-panel-sub">{{ survey.value }} responses so far · each statement from Strongly disagree to Strongly agree</p></div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <ul class="fms-legend" aria-hidden="true">
+          {% for l in likert %}<li><span class="fms-swatch is-l{{ l.level }}"></span>{{ l.label }}</li>{% endfor %}
+        </ul>
+        <div class="fms-meters">
+          {% for q in questions %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ q.statement }}</span><span class="fms-meter-value"><strong>{{ q.average }}</strong> · {{ q.agree }}% agree</span></div>
+            <div class="fms-stackbar fms-likert" role="img" aria-label="{{ q.statement }} {% for part in q.parts %}{{ part.label }} {{ part.count }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+              {% for part in q.parts %}<i class="is-l{{ part.level }}" style="width: {{ part.pct }}%"></i>{% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="themes-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="themes-title">Written answers by theme</h2><p class="ds-panel-sub">"What would make work better for you?" · grouped by HR · themes under {{ small_group }} answers are not shown</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for t in themes %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ t.theme }}</span><span class="fms-meter-value"><strong>{{ t.value }}</strong> answers</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ t.pct }}%"></i></div>
+            <div class="fms-caption">“{{ t.example }}”</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="fms-col is-side">
+    <section class="ds-card ds-panel" aria-labelledby="index-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="index-title">Engagement index</h2><p class="ds-panel-sub">Mean of the statement averages, by term</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-figure">
+          <div class="fms-figure-value">{{ index }}<span> / 5</span></div>
+          <figure class="fms-spark">
+            <svg viewBox="0 0 {{ index_trend.width }} {{ index_trend.height }}" width="{{ index_trend.width }}" height="{{ index_trend.height }}" role="img" aria-label="Engagement index by term: {{ index_trend.summary }}">
+              <polyline points="{{ index_trend.points }}"/>
+              {% for dot in index_trend.dots %}<circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="4"{% if forloop.last %} class="is-current"{% endif %}><title>{{ dot.label }}: {{ dot.value }}</title></circle>{% endfor %}
+            </svg>
+            <figcaption class="fms-caption">Last {{ index_trend.dots|length }} terms</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="bydept-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="bydept-title">Responses by department</h2><p class="ds-panel-sub">Counts only · the department answered from is optional</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for d in by_dept %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ d.name }}</span><span class="fms-meter-value"><strong>{{ d.value }}</strong> of {{ d.total }}</span></div>
+            <div class="fms-meter-track{% if d.pct < 60 %} is-warning{% endif %}" aria-hidden="true"><i style="width: {{ d.pct }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal m-md" id="survey-dialog" aria-labelledby="survey-new-title" aria-describedby="survey-new-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-survey-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-clipboard-text"></i></div>
+        <h2 class="ds-modal-title" id="survey-new-title">New survey</h2>
+        <p class="ds-modal-desc" id="survey-new-desc">Always anonymous. It is saved as a draft until you schedule it.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="survey-name">Title <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <input class="ds-control" id="survey-name" aria-required="true" data-survey-name>
+      </div>
+      <div class="fms-form">
+        <div class="ds-field">
+          <label class="ds-label" for="survey-audience">Audience</label>
+          <select class="ds-control" id="survey-audience" data-survey-audience>{% for a in audiences %}<option>{{ a }}</option>{% endfor %}</select>
+        </div>
+        <div class="ds-field">
+          <label class="ds-label" for="survey-closes">Closes</label>
+          <input class="ds-control" id="survey-closes" type="date" min="2026-10-13" data-survey-closes>
+        </div>
+      </div>
+      <fieldset class="fms-fieldset">
+        <legend class="ds-label">Questions <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(at least one)</span></legend>
+        <ol class="fms-question-list" data-question-list></ol>
+        <div class="fms-row">
+          <label class="ds-sr-only" for="survey-question">New question</label>
+          <input class="ds-control fms-grow" id="survey-question" placeholder="e.g. I can take leave when I need it." data-question-text>
+          <label class="ds-sr-only" for="survey-question-type">Answer type</label>
+          <select class="ds-control fms-auto" id="survey-question-type" data-question-type><option value="scale">Agree scale, 1–5</option><option value="text">Written answer</option></select>
+          <button type="button" class="ds-btn ds-btn-secondary" data-question-add><i class="ti ti-plus" aria-hidden="true"></i>Add</button>
+        </div>
+      </fieldset>
+      <p class="ds-error fms-field-error" data-survey-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Add a title and at least one question.</span></p>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Save draft</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

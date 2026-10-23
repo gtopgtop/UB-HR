@@ -1,0 +1,194 @@
+{% extends "hr/base.html" %}
+{% load fms %}
+{# My wellness, employee view (proposal Module 5; plan §3 Module 5, §7.3 rules 2–4; usability tasks 5 and 6). #}
+{# Check-ins are private to the employee; HR sees groups of 5 or more only. Data: hr/sample_data.py ME_WELLNESS_PAGE. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/me_wellness.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-secondary" data-dialog-open="counselor-dialog"><i class="ti ti-calendar-plus" aria-hidden="true"></i>Talk to a counselor</button>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+<div class="ds-alert v-info" role="status"><i class="ti ti-lock" aria-hidden="true"></i><div class="ds-alert-body">Your check-ins are yours. HR and your principal only ever see groups of 5 or more people. The wellness officer sees yours only if you choose to share them.</div></div>
+
+<div class="fms-dash">
+  <div class="fms-col">
+    <section class="ds-card ds-panel" aria-labelledby="checkin-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="checkin-title">Today's check-in</h2><p class="ds-panel-sub">Monday, October 12 · you can change it until midnight</p></div>
+        <span class="ds-badge" data-checkin-badge>Not yet</span>
+      </div>
+      <div class="ds-panel-body">
+        <form class="ds-stack" data-checkin-form novalidate>
+          <fieldset class="fms-mood">
+            <legend class="ds-label">How is your mood?</legend>
+            {% for value, label in moods %}<label><input type="radio" name="mood" value="{{ value }}"><span>{{ label }}</span></label>{% endfor %}
+          </fieldset>
+          <fieldset class="fms-mood">
+            <legend class="ds-label">How stressed do you feel?</legend>
+            {% for value, label in moods %}<label><input type="radio" name="stress" value="{{ value }}"><span>{{ value }}{% if value == 1 %} · calm{% elif value == 5 %} · very{% endif %}</span></label>{% endfor %}
+          </fieldset>
+          <div class="ds-field">
+            <label class="ds-label" for="checkin-note">Private note <span class="fms-caption">(only you see this)</span></label>
+            <textarea class="ds-control" id="checkin-note" rows="2" data-checkin-note></textarea>
+          </div>
+          <p class="ds-error fms-field-error" data-checkin-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Pick your mood and stress level.</span></p>
+          <p class="fms-caption">The once-a-month question about how satisfied you are with work comes with your first check-in in November.</p>
+          <div><button type="submit" class="ds-btn ds-btn-primary" data-checkin-submit><i class="ti ti-check" aria-hidden="true"></i>Save check-in</button></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="trend-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="trend-title">Your last 30 days</h2><p class="ds-panel-sub">{{ rows|length }} check-ins · scores out of 5</p></div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <ul class="fms-legend">
+          <li><span class="fms-swatch is-mood" aria-hidden="true"></span>Mood (dashed)</li>
+          <li><span class="fms-swatch is-stress" aria-hidden="true"></span>Stress</li>
+        </ul>
+        <figure class="fms-chart">
+          <svg viewBox="0 0 {{ mood.width }} {{ mood.height }}" role="img" aria-label="Your mood by day: {{ mood.summary }}. Your stress by day: {{ stress.summary }}">
+            {% for t in mood.ticks %}<line class="fms-grid-line" x1="0" x2="{{ mood.width }}" y1="{{ t.y }}" y2="{{ t.y }}"/><text class="fms-tick" x="0" y="{{ t.y|add:'-4' }}">{{ t.value }}</text>{% endfor %}
+            <polyline class="fms-line is-mood" points="{{ mood.points }}"/>
+            <polyline class="fms-line is-stress" points="{{ stress.points }}"/>
+            {% for d in mood.dots %}
+            <circle class="fms-dot is-mood" cx="{{ d.x }}" cy="{{ d.y }}" r="4"/>
+            {% if forloop.first or forloop.last or forloop.counter == 7 %}<text class="fms-tick" x="{{ d.x }}" y="{{ mood.height|add:'-4' }}" text-anchor="middle">{{ d.label }}</text>{% endif %}
+            {% endfor %}
+            {% for d in stress.dots %}<circle class="fms-dot is-stress" cx="{{ d.x }}" cy="{{ d.y }}" r="4"><title>{{ d.label }}: stress {{ d.value }}</title></circle>{% endfor %}
+          </svg>
+        </figure>
+        <details class="fms-table-view">
+          <summary>Show as a table</summary>
+          <div class="ds-table-wrap">
+            <table class="ds-table fms-num">
+              <thead><tr><th scope="col">Day</th><th scope="col" class="a-right">Mood</th><th scope="col" class="a-right">Stress</th></tr></thead>
+              <tbody data-checkin-rows>{% for r in rows reversed %}<tr><th scope="row">{{ r.day }}</th><td class="a-right">{{ r.mood }}</td><td class="a-right">{{ r.stress }}</td></tr>{% endfor %}</tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="concern-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="concern-title">Send an anonymous concern</h2><p class="ds-panel-sub">No name is stored. Wellness topics go to the wellness office, the rest to HR.</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <form class="ds-stack" data-concern-form novalidate>
+          <div class="ds-field">
+            <label class="ds-label" for="concern-topic">Topic</label>
+            <select class="ds-control" id="concern-topic" data-concern-topic>{% for t in concern_topics %}<option{% if t in wellness_topics %} data-wellness{% endif %}>{{ t }}</option>{% endfor %}</select>
+          </div>
+          <div class="ds-field">
+            <label class="ds-label" for="concern-text">What's going on? <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+            <textarea class="ds-control" id="concern-text" rows="3" aria-required="true" aria-describedby="concern-error" data-concern-text></textarea>
+            <p class="ds-error fms-field-error" id="concern-error" data-concern-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Write your concern first.</span></p>
+          </div>
+          <div><button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-lock" aria-hidden="true"></i>Send anonymously</button></div>
+        </form>
+        <div class="ds-alert v-success" role="status" data-concern-done hidden><i class="ti ti-circle-check" aria-hidden="true"></i><div class="ds-alert-body"><strong>Sent.</strong> <span data-concern-route></span> Your claim code is <strong class="fms-mono" data-concern-code></strong>. Write it down: it's the only way to read the reply, and it can't be recovered.</div></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="fms-col is-side">
+    <section class="ds-card ds-panel" aria-labelledby="insights-title">
+      <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="insights-title">For you</h2><p class="ds-panel-sub">From your own check-ins and leave · private</p></div></div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for i in insights %}
+          <li><span class="ds-cell-person"><span class="ds-stat-icon {{ i.tone }}" aria-hidden="true"><i class="ti ti-{{ i.icon }}"></i></span><span class="fms-min0"><span class="fms-schedule-title">{{ i.text }}</span>{% if i.action == "Talk to a counselor" %}<button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-dialog-open="counselor-dialog">{{ i.action }}</button>{% elif i.action == "File leave" %}<a class="fms-link" href="{% url 'hr:me_attendance' %}#leave">{{ i.action }}</a>{% endif %}</span></span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="survey-title">
+      <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="survey-title">{{ survey.title }}</h2><p class="ds-panel-sub">Anonymous · {{ survey.questions }} questions · {{ survey.dates }}</p></div></div>
+      <div class="ds-panel-body ds-stack" data-survey-card>
+        <p class="fms-muted">Your answers aren't linked to you. HR sees results for groups of 5 or more.</p>
+        <button type="button" class="ds-btn ds-btn-primary ds-btn-sm" data-dialog-open="take-survey-dialog"><i class="ti ti-clipboard-text" aria-hidden="true"></i>Take the survey</button>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="share-title">
+      <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="share-title">Share with the wellness officer</h2><p class="ds-panel-sub">Optional · for {{ consent_days }} days · stop any time</p></div></div>
+      <div class="ds-panel-body ds-stack">
+        <label class="fms-check"><input type="checkbox" data-consent> Let the wellness officer see my check-ins</label>
+        <p class="fms-caption" aria-live="polite" data-consent-status>Not shared. Only you see your check-ins.</p>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal m-md" id="counselor-dialog" aria-labelledby="counselor-title" aria-describedby="counselor-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-counselor-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-calendar-plus"></i></div>
+        <h2 class="ds-modal-title" id="counselor-title">Talk to a counselor</h2>
+        <p class="ds-modal-desc" id="counselor-desc">The wellness office replies within 2 working days. Your principal and HR are not told.</p>
+      </div>
+      <div class="fms-form">
+        <div class="ds-field">
+          <label class="ds-label" for="counselor-mode">How</label>
+          <select class="ds-control" id="counselor-mode" data-counselor-mode><option>In person</option><option>Online</option><option>Phone</option></select>
+        </div>
+        <div class="ds-field">
+          <label class="ds-label" for="counselor-when">When suits you</label>
+          <select class="ds-control" id="counselor-when"><option>Mornings, before my shift</option><option>After 6:00 PM</option><option>Any time this week</option></select>
+        </div>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="counselor-note">Anything they should know <span class="fms-caption">(optional)</span></label>
+        <textarea class="ds-control" id="counselor-note" rows="2"></textarea>
+      </div>
+      <div class="ds-field"><label class="fms-check"><input type="checkbox" data-counselor-anon> Ask without my name (you'll get a claim code)</label></div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Send request</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="ds-modal m-md" id="take-survey-dialog" aria-labelledby="take-survey-title" aria-describedby="take-survey-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-take-survey-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-clipboard-text"></i></div>
+        <h2 class="ds-modal-title" id="take-survey-title">{{ survey.title }}</h2>
+        <p class="ds-modal-desc" id="take-survey-desc">Anonymous. Skip any question you'd rather not answer.</p>
+      </div>
+      {% for q in survey_questions %}
+      <fieldset class="fms-fieldset">
+        <legend class="ds-label">{{ q }}</legend>
+        <div class="fms-mood is-wide">{% for label in likert %}<label><input type="radio" name="q{{ forloop.parentloop.counter }}" value="{{ forloop.counter }}"><span>{{ label }}</span></label>{% endfor %}</div>
+      </fieldset>
+      {% endfor %}
+      <div class="ds-field">
+        <label class="ds-label" for="survey-open">What would make work better for you?</label>
+        <textarea class="ds-control" id="survey-open" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Send answers</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

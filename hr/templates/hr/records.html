@@ -1,14 +1,20 @@
 {% extends "hr/base.html" %}
+{% load fms %}
 {# Employee records, HR officer view (plan §3 Module 1, §8.2). HR reviews and edits; employees view their own. Data: hr/sample_data.py RECORDS. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/records.js' %}" defer></script>
+<script src="{% asset 'hr/js/verify.js' %}" defer></script>{% endblock %}
 
 {% block actions %}
 <div class="ds-actions">
-  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
-  <a class="ds-btn ds-btn-primary" href="{% url 'hr:directory' %}"><i class="ti ti-user-plus" aria-hidden="true"></i>Add employee</a>
+  <button type="button" class="ds-btn ds-btn-secondary" data-csv-table="#directory-table" data-csv-name="employee-directory.csv"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
+  <a class="ds-btn ds-btn-primary" href="{% url 'hr:directory' %}#add"><i class="ti ti-user-plus" aria-hidden="true"></i>Add employee</a>
 </div>
 {% endblock %}
 
 {% block content %}
+{% include "hr/_flash.html" %}
+
 <div class="fms-grid is-stats">
   {% for stat in stats %}
   <div class="ds-card ds-stat">
@@ -42,15 +48,15 @@
           <div class="ds-search">
             <i class="ti ti-search" aria-hidden="true"></i>
             <label class="ds-sr-only" for="directory-search">Search employees</label>
-            <input id="directory-search" type="search" placeholder="Search employees">
+            <input id="directory-search" type="search" placeholder="Search employees" data-records-search>
           </div>
         </div>
         <div class="ds-table-wrap">
-          <table class="ds-table">
+          <table class="ds-table" id="directory-table">
             <thead><tr><th scope="col">Employee</th><th scope="col">Department</th><th scope="col">Status</th><th scope="col">201 file</th></tr></thead>
             <tbody>
               {% for emp in employees %}
-              <tr{% if emp == record.employee %} aria-current="true"{% endif %}>
+              <tr data-records-row data-text="{{ emp.name|lower }} {{ emp.position|lower }} {{ emp.employee_no|lower }} {{ emp.department|lower }}"{% if emp == record.employee %} aria-current="true"{% endif %}>
                 <td><div class="ds-cell-person"><div class="ds-avatar" aria-hidden="true">{{ emp.initials }}</div><div><div class="ds-cell-strong">{{ emp.name }}</div><div class="ds-cell-sub">{{ emp.position }} · {{ emp.employee_no }}</div></div></div></td>
                 <td>{{ emp.department }}</td>
                 <td><span class="ds-badge v-{{ emp.tone }} s-sm">{{ emp.status }}</span></td>
@@ -119,24 +125,24 @@
 
     <section class="ds-card ds-panel p-none" aria-labelledby="corrections-title">
       <div class="ds-panel-head">
-        <div><h2 class="ds-panel-title" id="corrections-title">Correction requests</h2><p class="ds-panel-sub">{{ corrections_pending }} waiting for review · oldest first</p></div>
+        <div><h2 class="ds-panel-title" id="corrections-title">Correction requests</h2><p class="ds-panel-sub"><span data-corrections-left>{{ corrections_pending }}</span> waiting for review · oldest first</p></div>
       </div>
       <div class="ds-table-wrap">
         <table class="ds-table">
           <thead><tr><th scope="col">Employee</th><th scope="col">Field</th><th scope="col">Change</th><th scope="col">Filed</th><th scope="col">Status</th><th scope="col" class="a-right"><span class="ds-sr-only">Actions</span></th></tr></thead>
           <tbody>
             {% for req in corrections %}
-            <tr>
+            <tr data-correction-row data-name="{{ req.name }}" data-field="{{ req.field }}">
               <td><div class="ds-cell-strong">{{ req.name }}</div><div class="ds-cell-sub">{{ req.department }}</div></td>
               <td>{{ req.field }}{% if req.proof %}<div class="ds-cell-sub"><i class="ti ti-file-text" aria-hidden="true"></i> {{ req.proof }}</div>{% endif %}</td>
               <td><span class="fms-old">{{ req.old }}</span> <i class="ti ti-chevron-right fms-arrow" aria-hidden="true"></i><span class="ds-sr-only">changed to</span> {{ req.new }}</td>
               <td>{{ req.filed }}</td>
-              <td><span class="ds-status v-{{ req.tone }}"><span class="ds-dot d-{{ req.tone }}"></span>{{ req.status }}</span>{% if req.remark %}<div class="ds-cell-sub">{{ req.remark }}</div>{% endif %}</td>
+              <td data-correction-status><span class="ds-status v-{{ req.tone }}"><span class="ds-dot d-{{ req.tone }}"></span>{{ req.status }}</span>{% if req.remark %}<div class="ds-cell-sub">{{ req.remark }}</div>{% endif %}</td>
               <td class="a-right">
                 {% if req.status == "Pending" %}
-                <div class="fms-row fms-end">
-                  <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-dialog-open="decline-dialog" aria-label="Decline {{ req.field|lower }} correction for {{ req.name }}">Decline</button>
-                  <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" aria-label="Approve {{ req.field|lower }} correction for {{ req.name }}"><i class="ti ti-check" aria-hidden="true"></i>Approve</button>
+                <div class="fms-row fms-end" data-correction-actions>
+                  <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-dialog-open="decline-dialog" data-correction-decline aria-label="Decline {{ req.field|lower }} correction for {{ req.name }}">Decline</button>
+                  <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-correction-approve aria-label="Approve {{ req.field|lower }} correction for {{ req.name }}"><i class="ti ti-check" aria-hidden="true"></i>Approve</button>
                 </div>
                 {% endif %}
               </td>
@@ -180,7 +186,7 @@
     <section class="ds-card ds-panel" aria-labelledby="movements-title">
       <div class="ds-panel-head">
         <div><h2 class="ds-panel-title" id="movements-title">Recent movements</h2><p class="ds-panel-sub">Hires, promotions, transfers and separations this school year</p></div>
-        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-printer" aria-hidden="true"></i>Service records</button>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-dialog-open="service-dialog"><i class="ti ti-printer" aria-hidden="true"></i>Service record</button>
       </div>
       <div class="ds-panel-body">
         <ol class="fms-timeline">
@@ -204,7 +210,7 @@
     <section class="ds-card ds-panel" aria-labelledby="payslip-title">
       <div class="ds-panel-head">
         <div><h2 class="ds-panel-title" id="payslip-title">Current payroll run</h2><p class="ds-panel-sub">{{ payroll.period }} · {{ payroll.employees }} employees · {{ payroll.released }}</p></div>
-        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-check" aria-hidden="true"></i>Release payslips</button>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Approved for release. Payslips go to all {{ payroll.employees }} employees on Oct 15, and each one is notified."><i class="ti ti-check" aria-hidden="true"></i>Approve for release</button>
       </div>
       <div class="ds-panel-body">
         <div class="fms-grid is-halves">
@@ -238,7 +244,7 @@
               <td class="ds-cell-strong">{{ run.period }}</td>
               <td><span class="ds-status v-{{ run.tone }}"><span class="ds-dot d-{{ run.tone }}"></span>{{ run.released }}</span></td>
               <td class="a-right">{{ run.gross }}</td><td class="a-right">{{ run.withheld }}</td><td class="a-right ds-cell-strong">{{ run.net }}</td>
-              <td class="a-right"><button type="button" class="ds-row-action" aria-label="Download payroll register for {{ run.period }}"><i class="ti ti-download" aria-hidden="true"></i></button></td>
+              <td class="a-right"><button type="button" class="ds-row-action" data-register aria-label="Download payroll register for {{ run.period }}"><i class="ti ti-download" aria-hidden="true"></i></button></td>
             </tr>
             {% endfor %}
           </tbody>
@@ -252,10 +258,10 @@
     <section class="ds-card ds-panel p-none" aria-labelledby="contrib-title">
       <div class="ds-panel-head">
         <div><h2 class="ds-panel-title" id="contrib-title">Remittances, 2026</h2><p class="ds-panel-sub">Employee and employer shares together · amounts in pesos</p></div>
-        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-csv-table="#remittance-table" data-csv-name="remittances-2026.csv"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
       </div>
       <div class="ds-table-wrap">
-        <table class="ds-table fms-num">
+        <table class="ds-table fms-num" id="remittance-table">
           <thead><tr><th scope="col">Month</th>{% for col in remittances.columns %}<th scope="col" class="a-right">{{ col }}</th>{% endfor %}<th scope="col" class="a-right">Total</th><th scope="col">Status</th></tr></thead>
           <tbody>
             {% for row in remittances.rows %}
@@ -307,7 +313,7 @@
     <section class="ds-card ds-panel p-none" aria-labelledby="missing-title">
       <div class="ds-panel-head">
         <div><h2 class="ds-panel-title" id="missing-title">Missing documents</h2><p class="ds-panel-sub">Showing {{ missing_documents|length }} of {{ documents_missing }} · oldest request first</p></div>
-        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-speakerphone" aria-hidden="true"></i>Send reminders</button>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Reminders sent to the {{ missing_documents|length }} employees listed, each naming the document HR still needs."><i class="ti ti-speakerphone" aria-hidden="true"></i>Send reminders</button>
       </div>
       <div class="ds-table-wrap">
         <table class="ds-table">
@@ -333,16 +339,13 @@
           <thead><tr><th scope="col">Document</th><th scope="col">Employee</th><th scope="col">Category</th><th scope="col">Uploaded</th><th scope="col" class="a-right"><span class="ds-sr-only">Actions</span></th></tr></thead>
           <tbody>
             {% for doc in uploads %}
-            <tr>
+            <tr data-req-row>
               <td><div class="ds-cell-person"><div class="ds-stat-icon" aria-hidden="true"><i class="ti ti-file-text"></i></div><div><div class="ds-cell-strong">{{ doc.name }}</div><div class="ds-cell-sub">{{ doc.size }}</div></div></div></td>
               <td>{{ doc.employee }}</td>
               <td><span class="ds-badge s-sm">{{ doc.category }}</span></td>
-              <td>{{ doc.uploaded }}</td>
+              <td data-req-status>{{ doc.uploaded }}</td>
               <td class="a-right">
-                <div class="fms-row fms-end">
-                  <button type="button" class="ds-row-action" aria-label="View {{ doc.name }} from {{ doc.employee }}"><i class="ti ti-eye" aria-hidden="true"></i></button>
-                  <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" aria-label="Verify {{ doc.name }} from {{ doc.employee }}"><i class="ti ti-check" aria-hidden="true"></i>Verify</button>
-                </div>
+                <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-verify data-verify-name="{{ doc.employee }}" data-verify-item="{{ doc.name }}" data-verify-proof="{{ doc.name }} · {{ doc.size }}" data-verify-done="It joins their 201 file." aria-label="Verify {{ doc.name }} from {{ doc.employee }}"><i class="ti ti-check" aria-hidden="true"></i>Verify</button>
               </td>
             </tr>
             {% endfor %}
@@ -356,7 +359,7 @@
 
 {% block dialogs %}
 <dialog class="ds-modal m-md" id="decline-dialog" aria-labelledby="decline-title" aria-describedby="decline-desc">
-  <form method="dialog" novalidate class="fms-dialog-form">
+  <form method="dialog" novalidate class="fms-dialog-form" data-correction-form>
     <div class="ds-modal-body">
       <div class="ds-modal-head">
         <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-x"></i></div>
@@ -365,8 +368,9 @@
       </div>
       <div class="ds-field">
         <label class="ds-label" for="decline-remark">Remark <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
-        <textarea class="ds-control" id="decline-remark" aria-required="true" aria-describedby="decline-remark-hint"></textarea>
+        <textarea class="ds-control" id="decline-remark" aria-required="true" aria-describedby="decline-remark-hint decline-remark-error" data-correction-remark></textarea>
         <p class="ds-hint" id="decline-remark-hint">Say what is missing, for example the supporting document to attach.</p>
+        <p class="ds-error fms-field-error" id="decline-remark-error" data-correction-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Add a remark so the employee knows what to fix.</span></p>
       </div>
     </div>
     <div class="ds-modal-foot">
@@ -377,4 +381,32 @@
     </div>
   </form>
 </dialog>
+
+<dialog class="ds-modal m-lg" id="service-dialog" aria-labelledby="service-title" aria-describedby="service-desc">
+  <div class="ds-modal-body">
+    <div class="ds-modal-head">
+      <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-printer"></i></div>
+      <h2 class="ds-modal-title" id="service-title">Service record: {{ record.employee.name }}</h2>
+      <p class="ds-modal-desc" id="service-desc">{{ record.employee.employee_no }} · generated from employment history · for the record open beside the directory</p>
+    </div>
+    <div class="ds-table-wrap">
+      <table class="ds-table" id="service-table">
+        <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">Position</th><th scope="col">Status</th><th scope="col">Salary grade</th><th scope="col">Department</th><th scope="col">Remarks</th></tr></thead>
+        <tbody>
+          {% for line in record.service %}
+          <tr><td>{{ line.start }}</td><td>{{ line.end }}</td><td class="ds-cell-strong">{{ line.position }}</td><td>{{ line.status }}</td><td>{{ line.grade }}</td><td>{{ line.department }}</td><td>{{ line.remarks }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="ds-modal-foot">
+    <div class="ds-modal-foot-row">
+      <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Close</button>
+      <button type="button" class="ds-btn ds-btn-primary" data-csv-table="#service-table" data-csv-name="service-record-{{ record.employee.employee_no|lower }}.csv"><i class="ti ti-download" aria-hidden="true"></i>Download CSV</button>
+    </div>
+  </div>
+</dialog>
+
+{% include "hr/_verify_dialog.html" %}
 {% endblock %}

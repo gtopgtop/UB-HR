@@ -1,14 +1,20 @@
 {% extends "hr/base.html" %}
+{% load fms %}
 {# Wellness, HR officer view (plan §3 Module 5, §5.1, §6.1, §7.3). Aggregates only, groups of 5 or more. Data: hr/sample_data.py WELLNESS. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/wellness.js' %}" defer></script>{% endblock %}
 
 {% block actions %}
 <div class="ds-actions">
-  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
+  <a class="ds-btn ds-btn-secondary" href="{% url 'hr:surveys' %}"><i class="ti ti-clipboard-text" aria-hidden="true"></i>Surveys</a>
+  <button type="button" class="ds-btn ds-btn-secondary" data-wellness-csv><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
   <a class="ds-btn ds-btn-primary" href="{% url 'hr:alerts' %}"><i class="ti ti-plus" aria-hidden="true"></i>Start an intervention</a>
 </div>
 {% endblock %}
 
 {% block content %}
+{% include "hr/_flash.html" %}
+
 <div class="ds-alert v-info" role="status"><i class="ti ti-lock" aria-hidden="true"></i><div class="ds-alert-body">You see groups of 5 or more people only. Individual check-ins stay with the employee; the wellness officer sees one only when that employee consents.</div></div>
 
 <div class="fms-grid is-stats">
@@ -68,6 +74,39 @@
       </div>
     </section>
 
+    <section class="ds-card ds-panel" aria-labelledby="checkins-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="checkins-title">Daily check-ins this week</h2>
+          <p class="ds-panel-sub">Week of Oct 12 · by department · averages only</p>
+        </div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Check-in reminder sent to everyone in {{ checkins_low|join:' and ' }} who hasn't checked in this week. It names no one to their department head."><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind {{ checkins_low|length }} under 60%</button>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <div class="ds-table-wrap">
+          <table class="ds-table fms-num" data-checkin-table>
+            <thead><tr><th scope="col">Department</th><th scope="col">Checked in</th><th scope="col" class="a-right">Mood</th><th scope="col" class="a-right">Stress</th></tr></thead>
+            <tbody>
+              {% for c in checkins %}
+              <tr>
+                <th scope="row" class="ds-cell-strong">{{ c.name }}</th>
+                <td>
+                  <div class="fms-meter">
+                    <div class="fms-meter-head"><span class="ds-sr-only">Checked in</span><span class="fms-meter-value"><strong>{{ c.value }}</strong> of {{ c.total }} · {{ c.pct }}%</span></div>
+                    <div class="fms-meter-track{% if c.low %} is-warning{% endif %}" aria-hidden="true"><i style="width: {{ c.pct }}%"></i></div>
+                  </div>
+                </td>
+                <td class="a-right">{{ c.mood }}</td>
+                <td class="a-right{% if c.stress >= 3.5 %} ds-cell-strong{% endif %}">{{ c.stress }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="fms-caption">Each check-in asks: {% for q, how in checkin_questions %}{{ q|lower }} ({{ how }}){% if not forloop.last %}, {% endif %}{% endfor %}. Scores are 1 to 5.</p>
+      </div>
+    </section>
+
     <div class="fms-grid is-halves">
       {% for item in trends %}
       <section class="ds-card ds-panel" aria-labelledby="trend-{{ forloop.counter }}">
@@ -122,6 +161,7 @@
           <h2 class="ds-panel-title" id="survey-title">{{ survey.title }}</h2>
           <p class="ds-panel-sub">Anonymous · {{ survey.closes }}</p>
         </div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:surveys' %}">Results</a>
       </div>
       <div class="ds-panel-body ds-stack">
         <div class="fms-meter">
@@ -130,7 +170,7 @@
         </div>
         <div class="fms-row fms-between">
           <span class="fms-muted">Engagement index <strong>{{ survey.index }}</strong> / 5 · {{ survey.index_delta }} vs last term</span>
-          <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm"><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind</button>
+          <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Reminder sent to all {{ survey.total }} employees in the audience. The survey can't tell who has answered, so everyone gets it."><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind</button>
         </div>
       </div>
     </section>

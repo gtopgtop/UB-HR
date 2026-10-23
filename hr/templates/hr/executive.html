@@ -1,0 +1,247 @@
+{% extends "hr/base.html" %}
+{% load fms %}
+{# Executive analytics (plan §6, §7.3 rule 6, §9.2): headcount, turnover, attendance, performance, engagement,
+   burnout and the promotion pipeline. Read-only and aggregates only: no names. Data: hr/sample_data.py EXECUTIVE. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/chart_tip.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-secondary" data-say="Summary ready: a PDF of this page with today's figures." data-say-repeat><i class="ti ti-download" aria-hidden="true"></i>Download summary</button>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+{% include "hr/_role_preview.html" with note="Read-only, for the president and vice-presidents. Every figure is a school or department total; no one's name appears, and groups under 5 are merged." %}
+
+<div class="fms-grid is-stats">
+  {% for stat in stats %}
+  <div class="ds-card ds-stat">
+    <div class="ds-stat-icon {{ stat.tone }}" aria-hidden="true"><i class="ti ti-{{ stat.icon }}"></i></div>
+    <div class="fms-grow">
+      <div class="ds-stat-value">{{ stat.value }}</div>
+      <div class="ds-stat-label">{{ stat.label }}</div>
+      <div class="ds-stat-hint">{{ stat.hint }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="fms-dash">
+  <div class="fms-col">
+
+    <section class="ds-card ds-panel" aria-labelledby="pipeline-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="pipeline-title">Promotion pipeline</h2>
+          <p class="ds-panel-sub">{{ pipeline_ready }} promotion-ready · most in {{ most_ready.name }} ({{ most_ready.ready }})</p>
+        </div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <ul class="fms-legend" aria-hidden="true">
+          <li><span class="fms-swatch is-low"></span>Under 50% of requirements</li>
+          <li><span class="fms-swatch is-mid"></span>50–99%</li>
+          <li><span class="fms-swatch is-ready"></span>Ready</li>
+        </ul>
+        <div class="fms-meters">
+          {% for dept in pipeline %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ dept.name }}</span><span class="fms-meter-value"><strong>{{ dept.ready }}</strong> ready · {{ dept.total }} below the top rank</span></div>
+            <div class="fms-stackbar" role="img" aria-label="{{ dept.name }}: {{ dept.low }} under 50%, {{ dept.mid }} at 50 to 99%, {{ dept.ready }} ready">
+              <i class="is-low" style="width: {{ dept.low_pct }}%"></i><i class="is-mid" style="width: {{ dept.mid_pct }}%"></i>{% if dept.ready %}<i class="is-ready" style="width: {{ dept.ready_pct }}%"></i>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="attendance-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="attendance-title">Attendance rate by week</h2>
+          <p class="ds-panel-sub">Whole school · lowest: week of {{ attendance.weekly_low.0 }}, {{ attendance.weekly_low.1 }}%</p>
+        </div>
+      </div>
+      <div class="ds-panel-body">
+        {% with c=attendance.weekly %}
+        <figure class="fms-chart">
+          <svg viewBox="0 0 {{ c.width }} {{ c.height }}" role="img" aria-label="Whole school, attendance rate by week: {{ c.summary }}">
+            {% for t in c.ticks %}<line class="fms-grid-line" x1="0" x2="{{ c.width }}" y1="{{ t.y }}" y2="{{ t.y }}"/><text class="fms-tick" x="0" y="{{ t.y|add:'-4' }}">{{ t.value }}%</text>{% endfor %}
+            <polyline class="fms-line" points="{{ c.points }}"/>
+            {% for d in c.dots %}
+            <circle class="fms-dot{% if forloop.last %} is-current{% endif %}" cx="{{ d.x }}" cy="{{ d.y }}" r="4"/>
+            <circle class="fms-hit" cx="{{ d.x }}" cy="{{ d.y }}" r="14" tabindex="0" data-tip="Week of {{ d.label }}: {{ d.value }}%"><title>Week of {{ d.label }}: {{ d.value }}%</title></circle>
+            {% if forloop.counter0|divisibleby:2 %}<text class="fms-tick" x="{{ d.x }}" y="{{ c.height|add:'-4' }}" text-anchor="middle">{{ d.label }}</text>{% endif %}
+            {% endfor %}
+          </svg>
+        </figure>
+        {% endwith %}
+      </div>
+    </section>
+
+    <div class="fms-grid is-halves">
+      <section class="ds-card ds-panel" aria-labelledby="index-title">
+        <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="index-title">Engagement index</h2><p class="ds-panel-sub">Pulse survey, out of 5 · by semester</p></div></div>
+        <div class="ds-panel-body">
+          {% with c=engagement_index %}
+          <figure class="fms-chart">
+            <svg viewBox="0 0 {{ c.width }} {{ c.height }}" role="img" aria-label="Engagement index by semester: {{ c.summary }}">
+              {% for t in c.ticks %}<line class="fms-grid-line" x1="0" x2="{{ c.width }}" y1="{{ t.y }}" y2="{{ t.y }}"/><text class="fms-tick" x="0" y="{{ t.y|add:'-4' }}">{{ t.value }}</text>{% endfor %}
+              <polyline class="fms-line" points="{{ c.points }}"/>
+              {% for d in c.dots %}
+              <circle class="fms-dot{% if forloop.last %} is-current{% endif %}" cx="{{ d.x }}" cy="{{ d.y }}" r="4"/>
+              <circle class="fms-hit" cx="{{ d.x }}" cy="{{ d.y }}" r="14" tabindex="0" data-tip="{{ d.label }}: {{ d.value }} / 5"><title>{{ d.label }}: {{ d.value }} / 5</title></circle>
+              <text class="fms-tick" x="{{ d.x }}" y="{{ c.height|add:'-4' }}" text-anchor="{% if forloop.first %}start{% elif forloop.last %}end{% else %}middle{% endif %}">{{ d.label }}</text>
+              {% endfor %}
+            </svg>
+          </figure>
+          {% endwith %}
+        </div>
+      </section>
+
+      <section class="ds-card ds-panel" aria-labelledby="response-title">
+        <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="response-title">Survey response rate</h2><p class="ds-panel-sub">Share of employees who answered · this semester's survey is still open</p></div></div>
+        <div class="ds-panel-body">
+          {% with c=response_rate %}
+          <figure class="fms-chart">
+            <svg viewBox="0 0 {{ c.width }} {{ c.height }}" role="img" aria-label="Survey response rate by semester: {{ c.summary }}">
+              <line class="fms-baseline" x1="0" x2="{{ c.width }}" y1="{{ c.base }}" y2="{{ c.base }}"/>
+              {% for b in c.bars %}
+              {% if b.peak %}<text class="fms-value" x="{{ b.cx }}" y="{{ b.y|add:'-6' }}" text-anchor="middle">{{ b.value }}%</text>{% endif %}
+              <path class="fms-bar{% if b.peak %} is-peak{% endif %}" d="{{ b.path }}"/>
+              <rect class="fms-hit" x="{{ b.band_x }}" y="0" width="{{ b.band_w }}" height="{{ c.base }}" tabindex="0" data-tip="{{ b.label }}: {{ b.value }}% responded"><title>{{ b.label }}: {{ b.value }}% responded</title></rect>
+              <text class="fms-tick" x="{{ b.cx }}" y="{{ c.height|add:'-4' }}" text-anchor="middle">{{ b.label }}</text>
+              {% endfor %}
+            </svg>
+          </figure>
+          {% endwith %}
+        </div>
+      </section>
+
+      <section class="ds-card ds-panel" aria-labelledby="turnover-title">
+        <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="turnover-title">Turnover per semester</h2><p class="ds-panel-sub">Share of employees who left</p></div></div>
+        <div class="ds-panel-body">
+          {% with c=turnover %}
+          <figure class="fms-chart">
+            <svg viewBox="0 0 {{ c.width }} {{ c.height }}" role="img" aria-label="Turnover by semester: {{ c.summary }}">
+              {% for t in c.ticks %}<line class="fms-grid-line" x1="0" x2="{{ c.width }}" y1="{{ t.y }}" y2="{{ t.y }}"/><text class="fms-tick" x="0" y="{{ t.y|add:'-4' }}">{{ t.value }}%</text>{% endfor %}
+              <polyline class="fms-line" points="{{ c.points }}"/>
+              {% for d in c.dots %}
+              <circle class="fms-dot{% if forloop.last %} is-current{% endif %}" cx="{{ d.x }}" cy="{{ d.y }}" r="4"/>
+              <circle class="fms-hit" cx="{{ d.x }}" cy="{{ d.y }}" r="14" tabindex="0" data-tip="{{ d.label }}: {{ d.value }}%"><title>{{ d.label }}: {{ d.value }}%</title></circle>
+              <text class="fms-tick" x="{{ d.x }}" y="{{ c.height|add:'-4' }}" text-anchor="{% if forloop.first %}start{% elif forloop.last %}end{% else %}middle{% endif %}">{{ d.label }}</text>
+              {% endfor %}
+            </svg>
+          </figure>
+          {% endwith %}
+        </div>
+      </section>
+
+      <section class="ds-card ds-panel" aria-labelledby="tenure-title">
+        <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="tenure-title">Tenure</h2><p class="ds-panel-sub">Years at the school · all employees</p></div></div>
+        <div class="ds-panel-body">
+          {% with c=tenure %}
+          <figure class="fms-chart">
+            <svg viewBox="0 0 {{ c.width }} {{ c.height }}" role="img" aria-label="Employees by years at the school: {{ c.summary }}">
+              <line class="fms-baseline" x1="0" x2="{{ c.width }}" y1="{{ c.base }}" y2="{{ c.base }}"/>
+              {% for b in c.bars %}
+              {% if b.peak %}<text class="fms-value" x="{{ b.cx }}" y="{{ b.y|add:'-6' }}" text-anchor="middle">{{ b.value }}</text>{% endif %}
+              <path class="fms-bar{% if b.peak %} is-peak{% endif %}" d="{{ b.path }}"/>
+              <rect class="fms-hit" x="{{ b.band_x }}" y="0" width="{{ b.band_w }}" height="{{ c.base }}" tabindex="0" data-tip="{{ b.label }} years: {{ b.value }} employees"><title>{{ b.label }} years: {{ b.value }} employees</title></rect>
+              <text class="fms-tick" x="{{ b.cx }}" y="{{ c.height|add:'-4' }}" text-anchor="middle">{{ b.label }}</text>
+              {% endfor %}
+            </svg>
+          </figure>
+          {% endwith %}
+        </div>
+      </section>
+    </div>
+
+    <details class="ds-card ds-panel fms-table-view">
+      <summary class="ds-panel-body">Show the charts as tables</summary>
+      <div class="ds-table-wrap">
+        <table class="ds-table fms-num">
+          <thead><tr><th scope="col">Semester</th><th scope="col" class="a-right">Engagement index</th><th scope="col" class="a-right">Response rate</th></tr></thead>
+          <tbody>{% for e in engagement %}<tr><th scope="row">{{ e.term }}</th><td class="a-right">{{ e.index }}</td><td class="a-right">{{ e.rate }}%</td></tr>{% endfor %}</tbody>
+        </table>
+        <table class="ds-table fms-num">
+          <thead><tr><th scope="col">Week of</th>{% for d in attendance.weekly.dots %}<th scope="col" class="a-right">{{ d.label }}</th>{% endfor %}</tr></thead>
+          <tbody><tr><th scope="row">Attendance rate</th>{% for d in attendance.weekly.dots %}<td class="a-right">{{ d.value }}%</td>{% endfor %}</tr></tbody>
+        </table>
+        <table class="ds-table fms-num">
+          <thead><tr><th scope="col">Semester</th>{% for d in turnover.dots %}<th scope="col" class="a-right">{{ d.label }}</th>{% endfor %}</tr></thead>
+          <tbody><tr><th scope="row">Turnover</th>{% for d in turnover.dots %}<td class="a-right">{{ d.value }}%</td>{% endfor %}</tr></tbody>
+        </table>
+        <table class="ds-table fms-num">
+          <thead><tr><th scope="col">Years at the school</th>{% for b in tenure.bars %}<th scope="col" class="a-right">{{ b.label }}</th>{% endfor %}</tr></thead>
+          <tbody><tr><th scope="row">Employees</th>{% for b in tenure.bars %}<td class="a-right">{{ b.value }}</td>{% endfor %}</tr></tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+
+  <div class="fms-col is-side">
+    <section class="ds-card ds-panel" aria-labelledby="headcount-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="headcount-title">Headcount</h2><p class="ds-panel-sub">By department and employment status</p></div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <div class="fms-meters">
+          {% for d in departments %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ d.name }}</span><span class="fms-meter-value"><strong>{{ d.value }}</strong> · {{ d.pct }}%</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ d.pct }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+        <ul class="fms-list">
+          {% for s in status_counts %}<li><span>{{ s.label }}</span><span class="fms-meter-value"><strong>{{ s.value }}</strong> · {{ s.pct }}%</span></li>{% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="burnout-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="burnout-title">Burnout map</h2><p class="ds-panel-sub">Score out of 100 · Watch from 50, High from 70</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for b in burnout %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ b.name }}</span><span class="fms-meter-value"><strong>{{ b.score }}</strong> <span class="ds-badge v-{{ b.tone }} s-sm">{{ b.level }}</span></span></div>
+            <div class="fms-meter-track is-{{ b.tone }}" aria-hidden="true"><i style="width: {{ b.pct }}%"></i></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="perf-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="perf-title">Performance by department</h2><p class="ds-panel-sub">Last cycle · school {{ school_overall }} out of 5</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for r in dept_ratings %}
+          <li><span>{{ r.name }}</span><span class="fms-meter-value"><strong>{{ r.overall }}</strong> <span class="ds-status v-{{ r.tone }}"><span class="ds-dot d-{{ r.tone }}"></span>{{ r.delta }}</span></span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="interventions-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="interventions-title">Interventions</h2><p class="ds-panel-sub">Summary only · {{ alerts_open }} open alerts with HR</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for i in interventions %}<li><span>{{ i.status }}</span><span class="fms-meter-value"><strong>{{ i.count }}</strong></span></li>{% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="fms-tip" role="tooltip" data-chart-tip hidden></div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{# Commend an employee (plan §3 Module 3, Recognition). Shown on their profile and in their feed. Wired by career.js. #}
+<dialog class="ds-modal m-md" id="commend-dialog" aria-labelledby="commend-title" aria-describedby="commend-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-commend-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-star"></i></div>
+        <h2 class="ds-modal-title" id="commend-title">Commend an employee</h2>
+        <p class="ds-modal-desc" id="commend-desc">Shown on their profile and in their feed. Their department head is copied.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="commend-name">Employee <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <input class="ds-control" id="commend-name" list="commend-people" autocomplete="off" aria-required="true" data-commend-name>
+        <datalist id="commend-people">{% for p in people %}<option value="{% firstof p.name p %}">{% endfor %}</datalist>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="commend-for">For <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <textarea class="ds-control" id="commend-for" rows="2" placeholder="e.g. Covered three extra classes during the flu outbreak" aria-required="true" aria-describedby="commend-error" data-commend-for></textarea>
+        <p class="ds-error fms-field-error" id="commend-error" data-commend-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Add who and what for.</span></p>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-star" aria-hidden="true"></i>Commend</button>
+      </div>
+    </div>
+  </form>
+</dialog>

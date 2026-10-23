@@ -1,0 +1,20 @@
+{# Time in and out, employee view (plan §3 Module 2; usability task 1). Web button or a station's QR code. Wired by me_time.js. #}
+<section class="ds-card ds-panel" aria-labelledby="clock-title" data-clock data-now="{{ now }}" data-shift-start="{{ shift.start }}" data-shift-end="{{ shift.end }}">
+  <div class="ds-panel-head">
+    <div class="fms-min0"><h2 class="ds-panel-title" id="clock-title">Time in</h2><p class="ds-panel-sub">Today's shift: {{ shift.start }} to {{ shift.end }}</p></div>
+    <span class="ds-badge" data-clock-badge><span class="ds-dot"></span>Not timed in</span>
+  </div>
+  <div class="ds-panel-body ds-stack">
+    <div>
+      <div class="fms-clock-status" aria-live="polite" data-clock-status>You haven't timed in yet</div>
+      <ul class="fms-clock-log" data-clock-log>
+        <li><i class="ti ti-clock" aria-hidden="true"></i>Now {{ now }} · your shift starts at {{ shift.start }}</li>
+      </ul>
+    </div>
+    <div class="fms-row">
+      <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="qr-dialog" data-clock-in-qr><i class="ti ti-qrcode" aria-hidden="true"></i>Scan station QR</button>
+      <button type="button" class="ds-btn ds-btn-secondary" data-clock-in-web><i class="ti ti-login" aria-hidden="true"></i>Time in on the web</button>
+      <button type="button" class="ds-btn ds-btn-secondary" data-clock-out hidden><i class="ti ti-logout" aria-hidden="true"></i>Time out</button>
+    </div>
+  </div>
+</section>

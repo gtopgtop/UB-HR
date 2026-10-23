@@ -1,13 +1,19 @@
 {% extends "hr/base.html" %}
+{% load fms %}
 {# HR assistant, HR officer view (plan §3 Module 4, §7.4: "E answers, handoffs"). Data: hr/sample_data.py ASSISTANT. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/faq.js' %}" defer></script>
+<script src="{% asset 'hr/js/assistant.js' %}" defer></script>{% endblock %}
 
 {% block actions %}
 <div class="ds-actions">
-  <a class="ds-btn ds-btn-secondary" href="{% url 'hr:settings' %}"><i class="ti ti-settings" aria-hidden="true"></i>FAQ editor</a>
+  <button type="button" class="ds-btn ds-btn-secondary" data-dialog-open="faq-dialog" data-add-faq="" data-add-faq-name=""><i class="ti ti-plus" aria-hidden="true"></i>Add FAQ</button>
 </div>
 {% endblock %}
 
 {% block content %}
+{% include "hr/_flash.html" %}
+
 <div class="fms-grid is-stats">
   {% for stat in stats %}
   <div class="ds-card ds-stat">
@@ -28,20 +34,20 @@
       <div class="ds-panel-head">
         <div class="fms-min0">
           <h2 class="ds-panel-title" id="handoffs-title">Handoffs</h2>
-          <p class="ds-panel-sub">Questions the assistant couldn't answer · {{ handoffs|length }} open</p>
+          <p class="ds-panel-sub">Questions the assistant couldn't answer · <span data-handoff-count>{{ handoffs|length }}</span> open</p>
         </div>
       </div>
       <div class="ds-panel-body">
         <ul class="fms-list">
           {% for h in handoffs %}
-          <li>
+          <li data-handoff-row>
             <span class="fms-min0">
               <span class="fms-schedule-title">{{ h.question }}</span>
               <span class="fms-caption">{{ h.name }} · {{ h.department }} · {{ h.when }}</span>
               <span class="fms-caption">Closest FAQ: {{ h.closest }} <span class="ds-badge v-warning s-sm">{{ h.match }}</span></span>
             </span>
             <span class="fms-row fms-end">
-              <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" aria-label="Save the answer to: {{ h.question }} as an FAQ"><i class="ti ti-plus" aria-hidden="true"></i>Add FAQ</button>
+              <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-dialog-open="faq-dialog" data-add-faq="{{ h.question }}" data-add-faq-name="{{ h.name }}" aria-label="Save the answer to: {{ h.question }} as an FAQ"><i class="ti ti-plus" aria-hidden="true"></i>Add FAQ</button>
               <a class="ds-btn ds-btn-secondary ds-btn-sm" href="{% url 'hr:messages' %}" aria-label="Reply to {{ h.name }}">Reply</a>
             </span>
           </li>
@@ -83,31 +89,73 @@
       <div class="ds-panel-body">
         <ul class="fms-list">
           {% for f in flagged %}
-          <li><span class="fms-min0"><span class="fms-schedule-title">{{ f.faq }}</span><span class="fms-muted">{{ f.reason }}</span><span class="fms-caption">{{ f.votes }}</span></span><a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:settings' %}" aria-label="Edit the {{ f.faq }} answer"><i class="ti ti-pencil" aria-hidden="true"></i>Edit</a></li>
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ f.faq }}</span><span class="fms-muted">{{ f.reason }}</span><span class="fms-caption">{{ f.votes }}</span></span><button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-dialog-open="faq-dialog" data-edit-faq="{{ f.faq }}" aria-label="Edit the {{ f.faq }} answer"><i class="ti ti-pencil" aria-hidden="true"></i>Edit</button></li>
           {% endfor %}
         </ul>
       </div>
     </section>
 
-    <section class="ds-card ds-panel" aria-labelledby="preview-title">
+    <section class="ds-card ds-panel" aria-labelledby="tester-title">
       <div class="ds-panel-head">
         <div class="fms-min0">
-          <h2 class="ds-panel-title" id="preview-title">What employees see</h2>
-          <p class="ds-panel-sub">A sample answer and the suggested questions</p>
+          <h2 class="ds-panel-title" id="tester-title">Test the assistant</h2>
+          <p class="ds-panel-sub">Ask as an employee would. Nothing is sent to anyone.</p>
         </div>
       </div>
       <div class="ds-panel-body ds-stack">
-        <ol class="fms-bubbles" aria-label="Sample conversation">
-          {% for m in preview %}
-          <li class="fms-bubble{% if m.mine %} is-mine{% endif %}"><div class="fms-caption">{% if m.mine %}Employee{% else %}HR assistant{% endif %}</div><p>{{ m.text }}</p></li>
-          {% endfor %}
+        {{ faq_answers|json_script:"faq-data" }}
+        <ol class="fms-bubbles" aria-label="Test conversation" aria-live="polite" data-tester-log>
+          <li class="fms-bubble"><div class="fms-caption">HR assistant</div><p>Hi! Ask me about leave, pay, records or evaluations.</p></li>
         </ol>
-        <div class="fms-row">
-          {% for chip in chips %}<span class="ds-badge">{{ chip }}</span>{% endfor %}
+        <div class="fms-row" role="group" aria-label="Suggested questions">
+          {% for chip in chips %}<button type="button" class="ds-badge fms-chip" data-tester-chip>{{ chip }}</button>{% endfor %}
         </div>
+        <form class="fms-reply" data-tester-form novalidate>
+          <label class="ds-sr-only" for="tester-question">Question</label>
+          <input class="ds-control" id="tester-question" placeholder="e.g. How do I file sick leave?" autocomplete="off" data-tester-question>
+          <button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-send" aria-hidden="true"></i>Ask</button>
+        </form>
       </div>
     </section>
 
   </div>
 </div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal m-md" id="faq-dialog" aria-labelledby="faq-title" aria-describedby="faq-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-faq-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-message-plus"></i></div>
+        <h2 class="ds-modal-title" id="faq-title" data-faq-heading>Add an FAQ</h2>
+        <p class="ds-modal-desc" id="faq-desc">The assistant answers the next person who asks.<span data-faq-asker-note> <span data-faq-asker></span> gets this answer too.</span></p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="faq-question">Question <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <input class="ds-control" id="faq-question" aria-required="true" data-faq-question>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="faq-category">Category</label>
+        <select class="ds-control" id="faq-category" data-faq-category>{% for c in faq_categories %}<option>{{ c }}</option>{% endfor %}</select>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="faq-answer">Answer <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <textarea class="ds-control" id="faq-answer" rows="4" aria-required="true" aria-describedby="faq-error" data-faq-answer></textarea>
+        <p class="ds-error fms-field-error" id="faq-error" data-faq-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Write the answer employees will see.</span></p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="faq-keywords">Match words</label>
+        <input class="ds-control" id="faq-keywords" placeholder="e.g. civil status, married, name change" aria-describedby="faq-keywords-hint" data-faq-keywords>
+        <p class="ds-hint" id="faq-keywords-hint">Separate with commas. Two matching words give an answer.</p>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Save</button>
+      </div>
+    </div>
+  </form>
+</dialog>
 {% endblock %}

@@ -471,3 +471,14 @@ textarea.ds-control { min-height: 72px; resize: vertical; }
 .ti-send:before { content: "\eb1e"; }
 .ti-thumb-down:before { content: "\eb3b"; }
 .ti-user-plus:before { content: "\eb4b"; }
+.ti-arrow-back-up:before { content: "\eb77"; }
+.ti-arrow-down:before { content: "\ea16"; }
+.ti-calendar-week:before { content: "\fd30"; }
+.ti-chart-line:before { content: "\ea5c"; }
+.ti-clipboard-text:before { content: "\f089"; }
+.ti-clock-hour-4:before { content: "\f319"; }
+.ti-copy:before { content: "\ea7a"; }
+.ti-message-plus:before { content: "\ec9a"; }
+.ti-pencil-plus:before { content: "\f1ec"; }
+.ti-sparkles:before { content: "\f6d7"; }
+.ti-stairs-up:before { content: "\eca5"; }

@@ -1,4 +1,4 @@
-{% load static %}<!doctype html>
+{% load fms %}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -6,10 +6,10 @@
   <title>{{ page.title }} · Faculty Management System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="{% static 'hr/portal/tokens.css' %}">
-  <link rel="stylesheet" href="{% static 'hr/portal/bundle.css' %}">
-  <link rel="stylesheet" href="{% static 'hr/css/app.css' %}">
-  <script src="{% static 'hr/js/shell.js' %}" defer></script>
+  <link rel="stylesheet" href="{% asset 'hr/portal/tokens.css' %}">
+  <link rel="stylesheet" href="{% asset 'hr/portal/bundle.css' %}">
+  <link rel="stylesheet" href="{% asset 'hr/css/app.css' %}">
+  <script src="{% asset 'hr/js/shell.js' %}" defer></script>
   {% block scripts %}{% endblock %}
 </head>
 <body>

@@ -1,13 +1,19 @@
 {% extends "hr/base.html" %}
+{% load fms %}
 {# Messages, HR officer view (plan §3 Module 4, §7.3 rule 4, §7.4). HR sees only threads it is part of. Data: hr/sample_data.py MESSAGES. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/messages.js' %}" defer></script>{% endblock %}
 
 {% block actions %}
 <div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-secondary" data-dialog-open="compose-dialog"><i class="ti ti-pencil-plus" aria-hidden="true"></i>New message</button>
   <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="announce-dialog"><i class="ti ti-speakerphone" aria-hidden="true"></i>New announcement</button>
 </div>
 {% endblock %}
 
 {% block content %}
+{% include "hr/_flash.html" %}
+
 <div>
   <div class="ds-tabs" role="tablist" aria-label="Message sections">
     <button class="ds-tab" type="button" role="tab" id="tab-inbox" aria-controls="panel-inbox" aria-selected="true" data-hash="inbox"><i class="ti ti-inbox" aria-hidden="true"></i>Inbox <span class="ds-tab-count">{{ unread }}</span></button>
@@ -16,49 +22,64 @@
     <button class="ds-tab" type="button" role="tab" id="tab-notifications" aria-controls="panel-notifications" aria-selected="false" tabindex="-1" data-hash="notifications"><i class="ti ti-bell" aria-hidden="true"></i>Notifications <span class="ds-tab-count">{{ notifications|length }}</span></button>
   </div>
 
-  {# ── Inbox ── #}
+  {# ── Inbox: threads HR is part of — one employee, a department group, or the HR office itself (§7.4) ── #}
   <div class="fms-tab-panel" role="tabpanel" id="panel-inbox" aria-labelledby="tab-inbox" tabindex="0">
     <div class="fms-inbox">
       <section class="ds-card ds-panel p-none" aria-labelledby="threads-title">
-        <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="threads-title">Conversations</h2><p class="ds-panel-sub">Employees and department groups writing to HR</p></div></div>
-        <ul class="fms-threads">
+        <div class="ds-panel-head">
+          <div class="fms-min0"><h2 class="ds-panel-title" id="threads-title">Conversations</h2><p class="ds-panel-sub">Employees, department groups and the HR office</p></div>
+          <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-dialog-open="compose-dialog"><i class="ti ti-pencil-plus" aria-hidden="true"></i>New</button>
+        </div>
+        <div class="fms-thread-filter">
+          <div class="ds-segmented" role="group" aria-label="Show conversations">
+            <button type="button" class="ds-seg" aria-pressed="true" data-thread-filter="">All</button>
+            <button type="button" class="ds-seg" aria-pressed="false" data-thread-filter="employee">Employees</button>
+            <button type="button" class="ds-seg" aria-pressed="false" data-thread-filter="group">Groups</button>
+            <button type="button" class="ds-seg" aria-pressed="false" data-thread-filter="office">HR office</button>
+          </div>
+        </div>
+        <ul class="fms-threads" data-thread-list>
           {% for t in threads %}
-          <li>
-            <a class="fms-thread" href="#inbox"{% if t == thread %} aria-current="true"{% endif %}>
-              <span class="ds-avatar" aria-hidden="true">{{ t.initials }}</span>
+          <li data-kind="{{ t.kind }}">
+            <button type="button" class="fms-thread" data-thread="{{ t.id }}"{% if t == thread %} aria-current="true"{% endif %}>
+              <span class="ds-avatar" aria-hidden="true">{% if t.kind == "office" %}<i class="ti ti-building"></i>{% elif t.kind == "group" %}<i class="ti ti-users"></i>{% else %}{{ t.initials }}{% endif %}</span>
               <span class="fms-min0 fms-grow">
                 <span class="fms-thread-head"><span class="fms-schedule-title">{{ t.name }}</span><span class="fms-caption">{{ t.when }}</span></span>
                 <span class="fms-thread-subject">{{ t.subject }}</span>
-                <span class="fms-caption fms-truncate">{{ t.preview }}</span>
+                <span class="fms-caption fms-truncate" data-thread-preview>{{ t.preview }}</span>
               </span>
-              {% if t.unread %}<span class="ds-badge v-brand s-sm">{{ t.unread }}<span class="ds-sr-only"> unread</span></span>{% endif %}
-            </a>
+              {% if t.unread %}<span class="ds-badge v-brand s-sm" data-thread-unread>{{ t.unread }}<span class="ds-sr-only"> unread</span></span>{% endif %}
+            </button>
           </li>
           {% endfor %}
         </ul>
       </section>
 
-      <section class="ds-card ds-panel" aria-labelledby="thread-title">
-        <div class="ds-panel-head">
-          <div class="fms-min0"><h2 class="ds-panel-title" id="thread-title">{{ thread.subject }}</h2><p class="ds-panel-sub">{{ thread.name }} · {{ thread.department }}</p></div>
-          <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:attendance' %}#leave">Open leave request</a>
-        </div>
-        <div class="ds-panel-body ds-stack">
-          <ol class="fms-bubbles" aria-label="Messages">
-            {% for m in thread.messages %}
-            <li class="fms-bubble{% if m.mine %} is-mine{% endif %}">
-              <div class="fms-caption">{{ m.from }} · {{ m.when }}</div>
-              <p>{{ m.text }}</p>
-            </li>
-            {% endfor %}
-          </ol>
-          <form class="fms-reply" onsubmit="return false">
-            <label class="ds-sr-only" for="reply">Reply to {{ thread.name }}</label>
-            <textarea class="ds-control" id="reply" rows="2" placeholder="Write a reply…"></textarea>
-            <button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-send" aria-hidden="true"></i>Send</button>
-          </form>
-        </div>
-      </section>
+      <div data-thread-panes>
+        {% for t in threads %}
+        <section class="ds-card ds-panel" aria-labelledby="thread-{{ t.id }}-title" data-thread-pane="{{ t.id }}"{% if t != thread %} hidden{% endif %}>
+          <div class="ds-panel-head">
+            <div class="fms-min0"><h2 class="ds-panel-title" id="thread-{{ t.id }}-title">{{ t.subject }}</h2><p class="ds-panel-sub">{{ t.name }} · {{ t.department }}</p></div>
+            {% with name=t.link.0 hash=t.link.1 label=t.link.2 %}<a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:'|add:name %}{% if hash %}#{{ hash }}{% endif %}">{{ label }}</a>{% endwith %}
+          </div>
+          <div class="ds-panel-body ds-stack">
+            <ol class="fms-bubbles" aria-label="Messages" aria-live="polite" data-bubbles>
+              {% for m in t.messages %}
+              <li class="fms-bubble{% if m.mine %} is-mine{% endif %}">
+                <div class="fms-caption">{{ m.from }} · {{ m.when }}</div>
+                <p>{{ m.text }}</p>
+              </li>
+              {% endfor %}
+            </ol>
+            <form class="fms-reply" data-reply-form novalidate>
+              <label class="ds-sr-only" for="reply-{{ t.id }}">Reply to {{ t.name }}</label>
+              <textarea class="ds-control" id="reply-{{ t.id }}" rows="2" placeholder="Write a reply…" data-reply-text></textarea>
+              <button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-send" aria-hidden="true"></i>Send</button>
+            </form>
+          </div>
+        </section>
+        {% endfor %}
+      </div>
     </div>
   </div>
 
@@ -70,9 +91,9 @@
       <div class="ds-panel-body">
         <ul class="fms-list">
           {% for c in concerns %}
-          <li>
+          <li data-concern-row>
             <span class="fms-min0"><span class="fms-schedule-title">{{ c.topic }}</span><span class="fms-muted">{{ c.excerpt }}</span><span class="fms-caption">{{ c.code }} · received {{ c.received }}</span></span>
-            <span class="fms-row fms-end"><span class="ds-badge v-{{ c.tone }} s-sm">{{ c.status }}</span><button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" aria-label="Reply to the {{ c.topic|lower }} concern">Reply</button></span>
+            <span class="fms-row fms-end"><span class="ds-badge v-{{ c.tone }} s-sm" data-concern-status>{{ c.status }}</span><button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-dialog-open="concern-dialog" data-concern="{{ c.topic }}" data-concern-code="{{ c.code }}" data-concern-text="{{ c.excerpt }}" aria-label="Reply to the {{ c.topic|lower }} concern">Reply</button></span>
           </li>
           {% endfor %}
         </ul>
@@ -88,7 +109,7 @@
         <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-dialog-open="announce-dialog"><i class="ti ti-plus" aria-hidden="true"></i>New</button>
       </div>
       <div class="ds-panel-body">
-        <div class="fms-meters">
+        <div class="fms-meters" data-announcement-list>
           {% for item in announcements %}
           <div class="fms-meter">
             <div class="fms-meter-head"><span>{{ item.title }}</span><span class="fms-meter-value"><strong>{{ item.value }}</strong> of {{ item.total }} read</span></div>
@@ -119,7 +140,7 @@
 
 {% block dialogs %}
 <dialog class="ds-modal m-md" id="announce-dialog" aria-labelledby="announce-title" aria-describedby="announce-desc">
-  <form method="dialog" novalidate class="fms-dialog-form">
+  <form method="dialog" novalidate class="fms-dialog-form" data-announce-form>
     <div class="ds-modal-body">
       <div class="ds-modal-head">
         <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-speakerphone"></i></div>
@@ -128,16 +149,17 @@
       </div>
       <div class="ds-field">
         <label class="ds-label" for="announce-subject">Title <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
-        <input class="ds-control" id="announce-subject" aria-required="true">
+        <input class="ds-control" id="announce-subject" aria-required="true" aria-describedby="announce-error" data-announce-title>
+        <p class="ds-error fms-field-error" id="announce-error" data-announce-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Give the announcement a title.</span></p>
       </div>
       <div class="fms-form">
         <div class="ds-field">
           <label class="ds-label" for="announce-audience">Audience</label>
-          <select class="ds-control" id="announce-audience">{% for a in audiences %}<option>{{ a }}</option>{% endfor %}</select>
+          <select class="ds-control" id="announce-audience" data-announce-audience>{% for a in audiences %}<option>{{ a }}</option>{% endfor %}</select>
         </div>
         <div class="ds-field">
           <label class="ds-label" for="announce-kind">Kind</label>
-          <select class="ds-control" id="announce-kind"><option>Memo</option><option>Policy</option><option>Event</option></select>
+          <select class="ds-control" id="announce-kind" data-announce-kind><option>Memo</option><option>Policy</option><option>Event</option></select>
         </div>
       </div>
       <div class="ds-field">
@@ -152,6 +174,66 @@
       <div class="ds-modal-foot-row">
         <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
         <button type="submit" class="ds-btn ds-btn-primary">Send</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="ds-modal m-md" id="compose-dialog" aria-labelledby="compose-title" aria-describedby="compose-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-compose-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-pencil-plus"></i></div>
+        <h2 class="ds-modal-title" id="compose-title">New message</h2>
+        <p class="ds-modal-desc" id="compose-desc">Only the people in the conversation can read it. Non-urgent messages wait for each person's working hours.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="compose-to">To</label>
+        <select class="ds-control" id="compose-to" data-compose-to>
+          {% for group, names in recipients %}<optgroup label="{{ group }}">{% for n in names %}<option>{{ n }}</option>{% endfor %}</optgroup>{% endfor %}
+        </select>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="compose-subject">Subject <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <input class="ds-control" id="compose-subject" aria-required="true" data-compose-subject>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="compose-body">Message <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <textarea class="ds-control" id="compose-body" rows="4" aria-required="true" aria-describedby="compose-error" data-compose-body></textarea>
+        <p class="ds-error fms-field-error" id="compose-error" data-compose-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Add a subject and a message.</span></p>
+      </div>
+      <div class="ds-field">
+        <label class="fms-check"><input type="checkbox" data-compose-urgent> Urgent: deliver now, even outside working hours</label>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-send" aria-hidden="true"></i>Send</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="ds-modal m-md" id="concern-dialog" aria-labelledby="concern-title" aria-describedby="concern-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-concern-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-lock"></i></div>
+        <h2 class="ds-modal-title" id="concern-title">Reply to an anonymous concern</h2>
+        <p class="ds-modal-desc" id="concern-desc">The sender reads your reply with their claim code. You never see who they are.</p>
+      </div>
+      <blockquote class="fms-quote" data-concern-quote></blockquote>
+      <div class="ds-field">
+        <label class="ds-label" for="concern-reply">Reply <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <textarea class="ds-control" id="concern-reply" rows="4" aria-required="true" aria-describedby="concern-error" data-concern-reply></textarea>
+        <p class="ds-error fms-field-error" id="concern-error" data-concern-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Write a reply first.</span></p>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-send" aria-hidden="true"></i>Send reply</button>
       </div>
     </div>
   </form>

@@ -1,10 +1,16 @@
 {% extends "hr/base.html" %}
-{# Department overview, as HR sees one department (plan §9.2 Department dashboard; §5.1–5.3). Data: hr/sample_data.py DEPARTMENT. #}
+{# Department overview (plan §9.2 Department dashboard; §5.1–5.3): the dean's landing page, and one department #}
+{# as HR sees it. Data: hr/sample_data.py DEPARTMENT. #}
 
 {% block actions %}
 <div class="ds-actions">
+  {% if role.key == "head" %}
+  <a class="ds-btn ds-btn-secondary" href="{% url 'hr:team' %}"><i class="ti ti-users" aria-hidden="true"></i>Team</a>
+  <a class="ds-btn ds-btn-primary" href="{% url 'hr:approvals' %}"><i class="ti ti-clipboard-check" aria-hidden="true"></i>Leave approvals</a>
+  {% else %}
   <a class="ds-btn ds-btn-secondary" href="{% url 'hr:messages' %}"><i class="ti ti-message-2" aria-hidden="true"></i>Message {{ head }}</a>
   <a class="ds-btn ds-btn-primary" href="{% url 'hr:alerts' %}"><i class="ti ti-alert-triangle" aria-hidden="true"></i>Open the burnout alert</a>
+  {% endif %}
 </div>
 {% endblock %}
 
@@ -78,10 +84,10 @@
     <section class="ds-card ds-panel" aria-labelledby="leave-title">
       <div class="ds-panel-head">
         <div class="fms-min0">
-          <h2 class="ds-panel-title" id="leave-title">Leave with the dean</h2>
+          <h2 class="ds-panel-title" id="leave-title">{% if role.key == "head" %}Leave waiting for you{% else %}Leave with the dean{% endif %}</h2>
           <p class="ds-panel-sub">Step 1 · HR takes over after the dean decides</p>
         </div>
-        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:approvals' %}">All departments</a>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:approvals' %}">{% if role.key == "head" %}Decide{% else %}All departments{% endif %}</a>
       </div>
       <div class="ds-panel-body">
         <ul class="fms-list">
@@ -109,7 +115,11 @@
           <li><span>Feedback overdue</span><span class="ds-badge v-warning s-sm">{{ feedback_overdue }} people</span></li>
           <li><span>Promotion pipeline</span><span class="fms-caption">{{ pipeline.ready }} ready · {{ pipeline.mid }} at 50–99%</span></li>
         </ul>
+        {% if role.key == "head" %}
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Sent the evaluator list to your program chairs: {{ dept.unassigned }} faculty still need evaluators by Oct 23."><i class="ti ti-send" aria-hidden="true"></i>Ask program chairs</button>
+        {% else %}
         <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Reminder sent to {{ head }}: {{ dept.unassigned }} faculty still need evaluators by Oct 23."><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind the dean</button>
+        {% endif %}
       </div>
     </section>
 

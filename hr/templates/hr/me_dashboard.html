@@ -1,0 +1,122 @@
+{% extends "hr/base.html" %}
+{% load fms %}
+{# My dashboard, employee view (plan §9.2 Employee: My dashboard; usability task 1). One person's own day: time-in, #}
+{# classes, leave, career progress, check-in and HR updates. Data: hr/sample_data.py ME_DASHBOARD. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/me_time.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <a class="ds-btn ds-btn-secondary" href="{% url 'hr:me_wellness' %}"><i class="ti ti-heart" aria-hidden="true"></i>Check in</a>
+  <a class="ds-btn ds-btn-primary" href="{% url 'hr:me_attendance' %}#leave"><i class="ti ti-plane-departure" aria-hidden="true"></i>File leave</a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+<div class="fms-grid is-stats">
+  {% for stat in stats %}
+  <div class="ds-card ds-stat">
+    <div class="ds-stat-icon {{ stat.tone }}" aria-hidden="true"><i class="ti ti-{{ stat.icon }}"></i></div>
+    <div class="fms-grow">
+      <div class="ds-stat-value">{{ stat.value }}</div>
+      <div class="ds-stat-label">{{ stat.label }}</div>
+      <div class="ds-stat-hint">{{ stat.hint }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="fms-dash">
+  <div class="fms-col">
+    {% include "hr/_me_clock.html" %}
+
+    <section class="ds-card ds-panel" aria-labelledby="today-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="today-title">Today's classes</h2><p class="ds-panel-sub">Monday, October 12 · set by your principal</p></div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:me_attendance' %}#schedule">Week</a>
+      </div>
+      <div class="ds-panel-body">
+        <ol class="fms-schedule">
+          {% for c in today %}
+          <li><span class="fms-schedule-time">{{ c.start }}</span><span class="fms-min0"><span class="fms-schedule-title">{{ c.title }}</span><span class="fms-caption">{{ c.room }} · until {{ c.end }}</span></span></li>
+          {% endfor %}
+        </ol>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="career-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="career-title">Your career progress</h2><p class="ds-panel-sub">{{ tracker.track }} track · {{ tracker.rank }} since {{ tracker.since }}</p></div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:me_career' %}">Details</a>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <ol class="fms-steps" aria-label="{{ tracker.track }} ranks">
+          {% for step in tracker.ladder %}
+          <li class="fms-step is-{{ step.state }}"{% if step.state == 'current' %} aria-current="step"{% endif %}>
+            <span class="fms-step-dot" aria-hidden="true">{% if step.state == 'done' %}<i class="ti ti-check"></i>{% endif %}</span>
+            <span class="fms-step-title">{{ step.title }}</span>
+          </li>
+          {% endfor %}
+        </ol>
+        <div class="fms-meter">
+          <div class="fms-meter-head"><span>Requirements for {{ tracker.next }}</span><span class="fms-meter-value"><strong>{{ tracker.met.value }}</strong> of {{ tracker.met.total }} met</span></div>
+          <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ tracker.met.pct }}%"></i></div>
+          {% for r in tracker.requirements %}{% if r.state != "met" %}<div class="fms-caption">Left: {{ r.label|lower }} · {{ r.detail }}</div>{% endif %}{% endfor %}
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="fms-col is-side">
+    <section class="ds-card ds-panel" aria-labelledby="leave-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="leave-title">Leave balance</h2><p class="ds-panel-sub">School year 2026–2027</p></div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:me_attendance' %}#leave">File leave</a>
+      </div>
+      <div class="ds-panel-body">
+        <div class="fms-meters">
+          {% for l in leave %}
+          <div class="fms-meter">
+            <div class="fms-meter-head"><span>{{ l.type }}</span><span class="fms-meter-value"><strong>{{ l.left }}</strong> of {{ l.total }} left</span></div>
+            <div class="fms-meter-track" aria-hidden="true"><i style="width: {{ l.pct }}%"></i></div>
+            {% if l.pending %}<div class="fms-caption">{{ l.pending }} day{{ l.pending|pluralize }} waiting for approval</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="checkin-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="checkin-title">How are you today?</h2><p class="ds-panel-sub">Your check-in is private to you</p></div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <p class="fms-muted">You haven't checked in today. It takes a few seconds.</p>
+        <a class="ds-btn ds-btn-secondary ds-btn-sm" href="{% url 'hr:me_wellness' %}"><i class="ti ti-mood-smile" aria-hidden="true"></i>Check in now</a>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="news-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="news-title">From HR</h2><p class="ds-panel-sub">Announcements and updates</p></div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:me_messages' %}#announcements">All</a>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for a in announcements %}
+          <li><span class="fms-min0"><span class="fms-schedule-title">{{ a.title }}</span><span class="fms-caption">{{ a.kind }} · {{ a.date }}</span></span>
+            {% if a.ack and not a.acked %}<button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Acknowledged: {{ a.title }}. HR sees that you've read it." aria-label="Acknowledge {{ a.title }}">Acknowledge</button>{% elif a.acked %}<span class="ds-badge v-success s-sm">Read</span>{% endif %}</li>
+          {% endfor %}
+          {% for n in notifications %}
+          <li><span class="ds-cell-person"><span class="ds-stat-icon {{ n.tone }}" aria-hidden="true"><i class="ti ti-{{ n.icon }}"></i></span><span class="fms-min0"><span class="fms-schedule-title">{{ n.title }}</span><span class="fms-caption">{{ n.detail }}</span></span></span><span class="fms-caption">{{ n.when }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block dialogs %}{% include "hr/_me_qr_dialog.html" %}{% endblock %}

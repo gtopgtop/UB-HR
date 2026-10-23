@@ -1,0 +1,28 @@
+{# The QR option for time-in (plan §3 Module 2). In the prototype the camera is simulated: Scan reads the code #}
+{# of the station picked here. Each station's code changes every minute, so a photo of it won't work later. #}
+<dialog class="ds-modal" id="qr-dialog" aria-labelledby="qr-title" aria-describedby="qr-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-qr-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-qrcode"></i></div>
+        <h2 class="ds-modal-title" id="qr-title">Scan the station QR code</h2>
+        <p class="ds-modal-desc" id="qr-desc">Point your camera at the code on the time station screen.</p>
+      </div>
+      <div class="fms-qr-frame" aria-hidden="true"><i class="ti ti-scan"></i><span>Camera preview</span></div>
+      <div class="ds-field">
+        <label class="ds-label" for="qr-station">Station in front of you</label>
+        <select class="ds-control" id="qr-station" data-qr-station>
+          <option>Main Building lobby</option><option>Library</option><option>Engineering Building</option>
+          <option value="offline">Basic Education gate</option>
+        </select>
+      </div>
+      <p class="ds-error fms-field-error" data-qr-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>That station is offline, so its code can't be read. Use another station or time in on the web.</span></p>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary"><i class="ti ti-scan" aria-hidden="true"></i>Scan</button>
+      </div>
+    </div>
+  </form>
+</dialog>

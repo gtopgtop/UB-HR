@@ -1,17 +1,19 @@
 {% extends "hr/base.html" %}
-{% load static %}
+{% load fms %}
 {# Employee directory: search and filter every employee; opens the record view (plan §9.2). Data: hr/sample_data.py DIRECTORY. #}
 
-{% block scripts %}<script src="{% static 'hr/js/directory.js' %}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% asset 'hr/js/directory.js' %}" defer></script>{% endblock %}
 
 {% block actions %}
 <div class="ds-actions">
-  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
-  <button type="button" class="ds-btn ds-btn-primary"><i class="ti ti-user-plus" aria-hidden="true"></i>Add employee</button>
+  <button type="button" class="ds-btn ds-btn-secondary" data-csv-table="#dir-table" data-csv-name="employee-directory.csv"><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
+  <button type="button" class="ds-btn ds-btn-primary" data-dialog-open="add-dialog"><i class="ti ti-user-plus" aria-hidden="true"></i>Add employee</button>
 </div>
 {% endblock %}
 
 {% block content %}
+{% include "hr/_flash.html" %}
+
 <section class="ds-card ds-panel p-none" aria-labelledby="dir-title">
   <div class="ds-panel-head">
     <div class="fms-min0">
@@ -37,9 +39,9 @@
     </div>
   </div>
   <div class="ds-table-wrap">
-    <table class="ds-table">
+    <table class="ds-table" id="dir-table">
       <thead><tr><th scope="col">Employee</th><th scope="col">Department</th><th scope="col">Status</th><th scope="col">Since</th><th scope="col" class="a-right"><span class="ds-sr-only">Open</span></th></tr></thead>
-      <tbody>
+      <tbody data-dir-body>
         {% for r in rows %}
         <tr data-dir-row data-dept="{{ r.department }}" data-status="{{ r.status }}" data-text="{{ r.name|lower }} {{ r.position|lower }}">
           <td><div class="ds-cell-person"><div class="ds-avatar" aria-hidden="true">{{ r.initials }}</div><div><div class="ds-cell-strong">{{ r.name }}</div><div class="ds-cell-sub">{{ r.position }}</div></div></div></td>
@@ -58,4 +60,47 @@
     <p class="ds-empty-sub">Try another name, or clear the department and status filters.</p>
   </div>
 </section>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal m-md" id="add-dialog" aria-labelledby="add-title" aria-describedby="add-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-add-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-user-plus"></i></div>
+        <h2 class="ds-modal-title" id="add-title">Add employee</h2>
+        <p class="ds-modal-desc" id="add-desc">Creates the record and an empty 201 file. The employee gets an invitation to sign in and finish their profile.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="add-name">Full name <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <input class="ds-control" id="add-name" autocomplete="off" aria-required="true" data-add-name>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="add-position">Position <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <input class="ds-control" id="add-position" placeholder="e.g. Instructor" aria-required="true" data-add-position>
+      </div>
+      <div class="fms-form">
+        <div class="ds-field">
+          <label class="ds-label" for="add-dept">Department</label>
+          <select class="ds-control" id="add-dept" data-add-dept>{% for d in departments %}<option>{{ d }}</option>{% endfor %}</select>
+        </div>
+        <div class="ds-field">
+          <label class="ds-label" for="add-status">Status</label>
+          <select class="ds-control" id="add-status" data-add-status>{% for st in statuses %}<option{% if st == "Probationary" %} selected{% endif %}>{{ st }}</option>{% endfor %}</select>
+        </div>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="add-start">Start date</label>
+        <input class="ds-control" id="add-start" type="date" value="2026-11-03" data-add-start>
+      </div>
+      <p class="ds-error fms-field-error" data-add-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Add the name and position.</span></p>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Add employee</button>
+      </div>
+    </div>
+  </form>
+</dialog>
 {% endblock %}

@@ -1,0 +1,87 @@
+{% extends "hr/base.html" %}
+{% load fms %}
+{# Evaluation breakdown, employee view (plan §3 Module 3, §5.5, §7.3 rules 9–10; usability tasks 8 and 9). #}
+{# The released computation, then the AI interpretation, which is the employee's alone: Copy and Download PDF carry #}
+{# the disclaimer. A disputed rating goes through a recheck. Data: hr/sample_data.py ME_BREAKDOWN_PAGE. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/me_breakdown.js' %}" defer></script>{% endblock %}
+
+{% block actions %}
+<div class="ds-actions">
+  <button type="button" class="ds-btn ds-btn-secondary" data-dialog-open="recheck-dialog" data-recheck-open><i class="ti ti-refresh" aria-hidden="true"></i>Request a recheck</button>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+
+<div class="fms-dash">
+  <div class="fms-col" data-print-part>
+    {% with computation_sub="Released "|add:released|add:" · "|add:cycle|add:" · previous cycle "|add:previous feedback_label="Your supervisor's feedback" %}{% include "hr/_breakdown_computation.html" %}{% endwith %}
+  </div>
+
+  <div class="fms-col is-side">
+    <section class="ds-card ds-panel fms-ai" aria-labelledby="ai-title" data-ai>
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="ai-title"><i class="ti ti-sparkles" aria-hidden="true"></i> What this means for you</h2><p class="ds-panel-sub">{{ interpretation.generated }} · only you can see this</p></div>
+      </div>
+      <div class="ds-panel-body ds-stack">
+        <div class="ds-alert v-warning" role="note"><i class="ti ti-alert-triangle" aria-hidden="true"></i><div class="ds-alert-body" data-ai-label>{{ interpretation.label }}</div></div>
+        {% for title, text in interpretation.parts %}
+        <div data-ai-part><h3 class="ds-eyebrow">{{ title }}</h3><p class="fms-muted">{{ text }}</p></div>
+        {% endfor %}
+        <div data-ai-part>
+          <h3 class="ds-eyebrow">Goals you could set</h3>
+          <ul class="fms-planned">{% for g in interpretation.goals %}<li>{{ g }}</li>{% endfor %}</ul>
+        </div>
+        <div class="fms-row" data-print-hide>
+          <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-ai-copy><i class="ti ti-copy" aria-hidden="true"></i>Copy</button>
+          <button type="button" class="ds-btn ds-btn-primary ds-btn-sm" data-ai-pdf data-print-title="Evaluation breakdown · {{ cycle }}"><i class="ti ti-download" aria-hidden="true"></i>Download PDF</button>
+        </div>
+        <div class="fms-row" data-print-hide>
+          <span class="fms-caption">Was this helpful?</span>
+          <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-say="Thanks. Your feedback helps improve the interpretations." aria-label="Yes, helpful">Yes</button>
+          <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" data-say="Thanks. To dispute the rating itself, request a recheck." aria-label="No, not helpful">No</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="about-title">
+      <div class="ds-panel-head"><div class="fms-min0"><h2 class="ds-panel-title" id="about-title">About the interpretation</h2></div></div>
+      <div class="ds-panel-body">
+        <ul class="fms-planned">
+          <li>It reads only the released figures above, never your name or anyone's individual answers.</li>
+          <li>Every number it quotes comes from this breakdown.</li>
+          <li>It never changes your rating, and HR decisions never use it.</li>
+          <li>Disagree with the rating? Request a recheck; HR reviews it with remarks.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="ds-modal m-md" id="recheck-dialog" aria-labelledby="recheck-title" aria-describedby="recheck-desc">
+  <form method="dialog" novalidate class="fms-dialog-form" data-recheck-form>
+    <div class="ds-modal-body">
+      <div class="ds-modal-head">
+        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-refresh"></i></div>
+        <h2 class="ds-modal-title" id="recheck-title">Request a recheck</h2>
+        <p class="ds-modal-desc" id="recheck-desc">HR checks the computation against the closed forms and replies with remarks, usually within 5 working days.</p>
+      </div>
+      <div class="ds-field">
+        <label class="ds-label" for="recheck-reason">What looks wrong? <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
+        <textarea class="ds-control" id="recheck-reason" rows="3" aria-required="true" aria-describedby="recheck-error" data-recheck-reason></textarea>
+        <p class="ds-error fms-field-error" id="recheck-error" data-recheck-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Say what you think is wrong.</span></p>
+      </div>
+    </div>
+    <div class="ds-modal-foot">
+      <div class="ds-modal-foot-row">
+        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
+        <button type="submit" class="ds-btn ds-btn-primary">Send to HR</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

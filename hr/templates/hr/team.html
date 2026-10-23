@@ -1,10 +1,10 @@
 {% extends "hr/base.html" %}
-{# Team, as HR sees one department's roster (plan §9.2 Team: roster, supervisor evaluations, feedback notes, recognition).
+{# Team: one department's roster, for its dean and for HR (plan §9.2 Team: roster, supervisor evaluations, feedback notes, recognition).
    Data: hr/sample_data.py TEAM_PAGE. #}
 
 {% block actions %}
 <div class="ds-actions">
-  <button type="button" class="ds-btn ds-btn-secondary"><i class="ti ti-table-export" aria-hidden="true"></i>Export roster</button>
+  <button type="button" class="ds-btn ds-btn-secondary" data-csv-table="#roster-table" data-csv-name="roster-{{ dept.name|slugify }}.csv"><i class="ti ti-table-export" aria-hidden="true"></i>Export roster</button>
 </div>
 {% endblock %}
 
@@ -21,7 +21,7 @@
         </div>
       </div>
       <div class="ds-table-wrap">
-        <table class="ds-table">
+        <table class="ds-table" id="roster-table">
           <thead><tr><th scope="col">Employee</th><th scope="col">Status</th><th scope="col">Today</th><th scope="col" class="a-right">Last rating</th><th scope="col">Last feedback</th><th scope="col">Supervisor evaluator</th><th scope="col">Flags</th></tr></thead>
           <tbody>
             {% for t in team %}
@@ -55,7 +55,11 @@
           <div class="fms-meter-track" aria-hidden="true"><i style="width: {% widthratio supervisor_done team|length 100 %}%"></i></div>
         </div>
         <p class="fms-muted">{{ dept.unassigned }} of {{ dept.headcount }} faculty still need evaluators across the department.</p>
+        {% if role.key == "head" %}
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Sent the evaluator list to your program chairs: {{ dept.unassigned }} faculty still need evaluators by Oct 23."><i class="ti ti-send" aria-hidden="true"></i>Ask program chairs</button>
+        {% else %}
         <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Reminder sent to {{ head }} about the {{ dept.unassigned }} unassigned evaluators."><i class="ti ti-speakerphone" aria-hidden="true"></i>Remind the dean</button>
+        {% endif %}
       </div>
     </section>
 

@@ -1,10 +1,10 @@
 {% extends "hr/base.html" %}
-{% load static %}
+{% load fms %}
 {# Attendance, HR officer view (plan §3 Module 2, §5.4, §8.3; usability task 14). Data: hr/sample_data.py ATTENDANCE. #}
 
-{% block scripts %}<script src="{% static 'hr/js/attendance.js' %}" defer></script>
-<script src="{% static 'hr/js/calendar.js' %}" defer></script>
-<script src="{% static 'hr/js/leave_queue.js' %}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% asset 'hr/js/attendance.js' %}" defer></script>
+<script src="{% asset 'hr/js/calendar.js' %}" defer></script>
+<script src="{% asset 'hr/js/leave_queue.js' %}" defer></script>{% endblock %}
 
 {% block actions %}
 <div class="ds-actions">
@@ -73,6 +73,8 @@
   <div class="ds-tabs" role="tablist" aria-label="Attendance sections">
     <button class="ds-tab" type="button" role="tab" id="tab-calendar" aria-controls="panel-calendar" aria-selected="true" data-hash="calendar"><i class="ti ti-calendar" aria-hidden="true"></i>Calendar and attendance</button>
     <button class="ds-tab" type="button" role="tab" id="tab-departments" aria-controls="panel-departments" aria-selected="false" tabindex="-1" data-hash="departments"><i class="ti ti-building-community" aria-hidden="true"></i>Departments</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-schedules" aria-controls="panel-schedules" aria-selected="false" tabindex="-1" data-hash="schedules"><i class="ti ti-calendar-week" aria-hidden="true"></i>Schedules <span class="ds-tab-count">{{ schedule_issues|length }}</span></button>
+    <button class="ds-tab" type="button" role="tab" id="tab-hours" aria-controls="panel-hours" aria-selected="false" tabindex="-1" data-hash="hours"><i class="ti ti-clock-hour-4" aria-hidden="true"></i>Work hours</button>
     <button class="ds-tab" type="button" role="tab" id="tab-watch" aria-controls="panel-watch" aria-selected="false" tabindex="-1" data-hash="watch-list"><i class="ti ti-alert-triangle" aria-hidden="true"></i>Watch list <span class="ds-tab-count">{{ watch_list|length }}</span></button>
     <button class="ds-tab" type="button" role="tab" id="tab-leave" aria-controls="panel-leave" aria-selected="false" tabindex="-1" data-hash="leave"><i class="ti ti-clipboard-list" aria-hidden="true"></i>Leave requests <span class="ds-tab-count" data-leave-count>{{ leave_with_hr }}</span></button>
   </div>
@@ -188,6 +190,108 @@
     </section>
   </div>
 
+  {# ── Schedules: department heads assign classes and duty shifts; HR checks coverage (plan §3 Module 2) ── #}
+  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-schedules" aria-labelledby="tab-schedules" tabindex="0" hidden>
+    <section class="ds-card ds-panel p-none" aria-labelledby="schedules-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="schedules-title">Schedule coverage</h2><p class="ds-panel-sub">1st semester · classes for teaching staff, duty shifts for non-teaching staff · set by the department head</p></div>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table fms-num">
+          <thead><tr><th scope="col">Department</th><th scope="col">Scheduled</th><th scope="col" class="a-right">Classes or shifts</th><th scope="col" class="a-right">No one assigned</th><th scope="col" class="a-right">Over {{ regular_load }} units</th><th scope="col">Status</th></tr></thead>
+          <tbody>
+            {% for row in schedules %}
+            <tr>
+              <th scope="row"><div class="ds-cell-strong">{{ row.name }}</div><div class="ds-cell-sub">{{ row.head }}</div></th>
+              <td>
+                <div class="fms-meter">
+                  <div class="fms-meter-head"><span class="ds-sr-only">People with a schedule</span><span class="fms-meter-value"><strong>{{ row.value }}</strong> of {{ row.total }}</span></div>
+                  <div class="fms-meter-track{% if row.missing %} is-warning{% endif %}" aria-hidden="true"><i style="width: {{ row.pct }}%"></i></div>
+                </div>
+              </td>
+              <td class="a-right">{{ row.slots }} <span class="fms-caption">{{ row.kind|lower }}</span></td>
+              <td class="a-right">{% if row.open %}<strong>{{ row.open }}</strong>{% else %}—{% endif %}</td>
+              <td class="a-right">{% if row.kind == "Classes" %}{{ row.over }}{% else %}—{% endif %}</td>
+              <td>{% if row.tone == "success" %}<span class="ds-status v-success"><span class="ds-dot d-success"></span>Complete</span>{% else %}<span class="ds-status v-warning"><span class="ds-dot d-warning"></span>{% if row.missing %}{{ row.missing }} without a schedule{% else %}{{ row.open }} to assign{% endif %}</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr><th scope="row">Whole school</th><td>{{ schedules_school.missing }} without a schedule</td><td></td><td class="a-right">{{ schedules_school.open }}</td><td class="a-right">{{ schedules_school.over }}</td><td></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="issues-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="issues-title">Schedule issues</h2><p class="ds-panel-sub">Found by checking schedules against leave, loads and each other · the maximum load is {{ max_load }} units</p></div>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for issue in schedule_issues %}
+          <li>
+            <span class="fms-min0"><span class="ds-status v-{{ issue.tone }}"><span class="ds-dot d-{{ issue.tone }}"></span>{{ issue.kind }}</span><span class="fms-schedule-title">{{ issue.detail }}</span><span class="fms-caption">{{ issue.department }}</span></span>
+            <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Sent to {{ issue.ask }}: {{ issue.kind|lower }}. You'll see the fix here once the schedule changes." aria-label="Ask {{ issue.ask }} to fix: {{ issue.detail }}"><i class="ti ti-send" aria-hidden="true"></i>Ask {{ issue.ask }}</button>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  {# ── Work hours: logged against expected, October's closed days (plan §3 Module 2) ── #}
+  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-hours" aria-labelledby="tab-hours" tabindex="0" hidden>
+    <section class="ds-card ds-panel p-none" aria-labelledby="hours-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="hours-title">Work hours, October so far</h2><p class="ds-panel-sub">{{ closed_days }} closed working days · expected is {{ hours_per_day }} hours for each day at work · overtime shown on its own</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-hours-csv><i class="ti ti-table-export" aria-hidden="true"></i>Download CSV</button>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table fms-num" data-hours-table>
+          <thead><tr><th scope="col">Department</th><th scope="col" class="a-right">Expected</th><th scope="col" class="a-right">Logged</th><th scope="col" class="a-right">Undertime</th><th scope="col">Overtime</th><th scope="col" class="a-right">Per person, weekly</th></tr></thead>
+          <tbody>
+            {% for row in hours %}
+            <tr>
+              <th scope="row" class="ds-cell-strong">{{ row.name }}</th>
+              <td class="a-right">{{ row.expected }} h</td>
+              <td class="a-right">{{ row.logged }} h</td>
+              <td class="a-right">{{ row.under }} h</td>
+              <td>
+                <div class="fms-meter">
+                  <div class="fms-meter-head"><span>{{ row.over }} h</span><span class="fms-meter-value"><strong>{{ row.share_text }}</strong> of expected</span></div>
+                  <div class="fms-meter-track{% if row.above %} is-warning{% endif %}" aria-hidden="true"><i style="width: {{ row.pct }}%"></i></div>
+                </div>
+              </td>
+              <td class="a-right ds-cell-strong">{{ row.weekly }} h</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr><th scope="row">Whole school</th><td class="a-right">{{ hours_school.expected }} h</td><td class="a-right">{{ hours_school.logged }} h</td><td class="a-right">{{ hours_school.under }} h</td><td>{{ hours_school.over }} h</td><td></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="ds-card ds-panel" aria-labelledby="long-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="long-title">Long hours</h2><p class="ds-panel-sub">10% or more above expected for 3 weeks in a row · counts toward the department's burnout score</p></div>
+        <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:wellness' %}">Burnout risk</a>
+      </div>
+      <div class="ds-panel-body">
+        <ul class="fms-list">
+          {% for p in long_hours %}
+          <li>
+            <span class="fms-min0"><span class="fms-schedule-title">{{ p.name }}</span><span class="fms-caption">{{ p.department }} · {{ p.weekly }} h a week for {{ p.weeks }} weeks</span></span>
+            <a class="ds-btn ds-btn-ghost ds-btn-sm" href="{% url 'hr:messages' %}" aria-label="Message {{ p.name }}">Message</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+
   {# ── Watch list: policy alerts (plan §5.4) ── #}
   <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-watch" aria-labelledby="tab-watch" tabindex="0" hidden>
     <div class="ds-alert v-info" role="status"><i class="ti ti-info-circle" aria-hidden="true"></i><div class="ds-alert-body">These rules notify the employee first. Department heads are told when a pattern repeats or an absence has no leave filed. HR Admin sets the thresholds.</div></div>
@@ -227,7 +331,7 @@
               <td><div class="ds-cell-strong">{{ row.name }}</div><div class="ds-cell-sub">{{ row.department }}</div></td>
               <td><div class="ds-cell-strong">{{ row.type }}</div><div class="ds-cell-sub">{{ row.dates }}</div></td>
               <td class="a-right">{{ row.days }}</td>
-              <td><ol class="fms-approval">{% for step in row.steps %}<li class="is-{{ step.state }}"{% if step.label == "HR" %} data-hr-step{% endif %}><i class="ti ti-{{ step.icon }}" aria-hidden="true"></i>{{ step.label }}<span class="ds-sr-only">: {{ step.state_label }}</span></li>{% endfor %}</ol></td>
+              <td><ol class="fms-approval">{% for step in row.steps %}<li class="is-{{ step.state }}"{% if step.label == "HR" %} data-my-step data-step-label="HR"{% endif %}><i class="ti ti-{{ step.icon }}" aria-hidden="true"></i>{{ step.label }}<span class="ds-sr-only">: {{ step.state_label }}</span></li>{% endfor %}</ol></td>
               <td data-leave-status><span class="ds-status{% if row.tone %} v-{{ row.tone }}{% endif %}"><span class="ds-dot{% if row.tone %} d-{{ row.tone }}{% endif %}"></span>{{ row.status }}</span></td>
               <td class="fms-remarks" data-leave-note>{{ row.note|default:"—" }}</td>
               <td class="a-right">
@@ -302,28 +406,7 @@
   </form>
 </dialog>
 
-<dialog class="ds-modal m-md" id="decline-dialog" aria-labelledby="decline-title" aria-describedby="decline-desc">
-  <form method="dialog" novalidate class="fms-dialog-form" data-decline-form>
-    <div class="ds-modal-body">
-      <div class="ds-modal-head">
-        <div class="ds-modal-icon" aria-hidden="true"><i class="ti ti-x"></i></div>
-        <h2 class="ds-modal-title" id="decline-title">Decline leave</h2>
-        <p class="ds-modal-desc" id="decline-desc">The days go back to the employee's balance. They see your remark and can refile.</p>
-      </div>
-      <div class="ds-field">
-        <label class="ds-label" for="decline-remark">Remark <span class="req" aria-hidden="true">*</span><span class="ds-sr-only">(required)</span></label>
-        <textarea class="ds-control" id="decline-remark" aria-required="true" aria-describedby="decline-error" data-decline-remark></textarea>
-        <p class="ds-error fms-field-error" id="decline-error" data-decline-error hidden><i class="ti ti-alert-circle" aria-hidden="true"></i><span>Add a remark so the employee knows why.</span></p>
-      </div>
-    </div>
-    <div class="ds-modal-foot">
-      <div class="ds-modal-foot-row">
-        <button type="button" class="ds-btn ds-btn-secondary" data-dialog-close autofocus>Cancel</button>
-        <button type="submit" class="ds-btn ds-btn-primary">Decline</button>
-      </div>
-    </div>
-  </form>
-</dialog>
+{% include "hr/_leave_decline_dialog.html" %}
 
 {% comment %} ── Calendar modals (handoff §8.11–8.13). HR keeps the school calendar, so creating an event asks
    where it goes (School calendar or Just me), and a school event picks its type. ── {% endcomment %}

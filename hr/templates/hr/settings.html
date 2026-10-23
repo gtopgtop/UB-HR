@@ -1,0 +1,269 @@
+{% extends "hr/base.html" %}
+{% load fms %}
+{# Settings, HR Admin (plan §5, §7, §9.2): roles and the permission matrix, leave types, policy rules, career tracks,
+   risk weights, the FAQ editor and the audit log. Saves are stand-ins (data-say). Data: hr/sample_data.py SETTINGS. #}
+
+{% block scripts %}<script src="{% asset 'hr/js/settings.js' %}" defer></script>{% endblock %}
+
+{% block content %}
+{% include "hr/_flash.html" %}
+{% include "hr/_role_preview.html" with note="HR Admin configures the system and sees aggregates only. It cannot open anyone's record or read messages; every change here is logged." %}
+
+<div>
+  <div class="ds-tabs" role="tablist" aria-label="Settings sections">
+    <button class="ds-tab" type="button" role="tab" id="tab-roles" aria-controls="panel-roles" aria-selected="true" data-hash="roles"><i class="ti ti-shield-check" aria-hidden="true"></i>Roles</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-weights" aria-controls="panel-weights" aria-selected="false" tabindex="-1" data-hash="risk-weights"><i class="ti ti-calculator" aria-hidden="true"></i>Risk weights</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-leave" aria-controls="panel-leave" aria-selected="false" tabindex="-1" data-hash="leave-types"><i class="ti ti-calendar-pause" aria-hidden="true"></i>Leave types</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-rules" aria-controls="panel-rules" aria-selected="false" tabindex="-1" data-hash="policy-rules"><i class="ti ti-bell" aria-hidden="true"></i>Policy rules</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-tracks" aria-controls="panel-tracks" aria-selected="false" tabindex="-1" data-hash="career-tracks"><i class="ti ti-trending-up" aria-hidden="true"></i>Career tracks</button>
+    <button class="ds-tab" type="button" role="tab" id="tab-faqs" aria-controls="panel-faqs" aria-selected="false" tabindex="-1" data-hash="faqs"><i class="ti ti-message-chatbot" aria-hidden="true"></i>FAQs <span class="ds-tab-count">{{ faqs_flagged }}</span></button>
+    <button class="ds-tab" type="button" role="tab" id="tab-audit" aria-controls="panel-audit" aria-selected="false" tabindex="-1" data-hash="audit-log"><i class="ti ti-list" aria-hidden="true"></i>Audit log</button>
+  </div>
+
+  {# ── Roles ── #}
+  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-roles" aria-labelledby="tab-roles" tabindex="0">
+    <div class="fms-dash">
+      <section class="ds-card ds-panel p-none" aria-labelledby="roles-title">
+        <div class="ds-panel-head">
+          <div class="fms-min0"><h2 class="ds-panel-title" id="roles-title">Roles</h2><p class="ds-panel-sub">Everyone is an Employee for their own records; other roles add to it</p></div>
+          <button type="button" class="ds-btn ds-btn-primary ds-btn-sm" data-say="Choose a person and a role. The grant is logged and the person is notified." data-say-repeat><i class="ti ti-user-plus" aria-hidden="true"></i>Grant a role</button>
+        </div>
+        <div class="ds-table-wrap">
+          <table class="ds-table">
+            <thead><tr><th scope="col">Role</th><th scope="col" class="a-right">People</th><th scope="col">Lands on</th></tr></thead>
+            <tbody>
+              {% for r in roles %}
+              <tr><td><div class="ds-cell-strong">{{ r.role }}</div><div class="ds-cell-sub">{{ r.who }}</div></td><td class="a-right">{{ r.holders }}</td><td>{{ r.landing }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="ds-card ds-panel" aria-labelledby="grants-title">
+        <div class="ds-panel-head">
+          <div class="fms-min0"><h2 class="ds-panel-title" id="grants-title">Recent grants</h2><p class="ds-panel-sub">Each one is in the audit log</p></div>
+        </div>
+        <div class="ds-panel-body">
+          <ul class="fms-list">
+            {% for g in grants %}
+            <li><span class="fms-min0"><span class="fms-schedule-title">{{ g.person }}</span><span class="fms-caption">{{ g.role }} · {{ g.scope }} · {{ g.when }} by {{ g.by }}</span></span></li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+    </div>
+
+    <section class="ds-card ds-panel p-none" aria-labelledby="matrix-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0">
+          <h2 class="ds-panel-title" id="matrix-title">Permission matrix</h2>
+          <p class="ds-panel-sub">V view · E create or edit · A approve · X export · C configure · Own, Dept, All, Agg (groups of {{ min_group }}+), Consent</p>
+        </div>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table fms-perm">
+          <thead><tr><th scope="col">Resource</th>{% for r in permission_roles %}<th scope="col">{{ r }}</th>{% endfor %}</tr></thead>
+          {% for group in permissions %}
+          <tbody>
+            <tr><th scope="rowgroup" colspan="{{ permission_roles|length|add:1 }}" class="ds-eyebrow">{{ group.group }}</th></tr>
+            {% for row in group.rows %}
+            <tr><th scope="row">{{ row.resource }}</th>{% for cell in row.cells %}<td{% if cell == "—" %} class="is-none"{% endif %}>{% if cell == "—" %}<span aria-hidden="true">—</span><span class="ds-sr-only">No access</span>{% else %}{{ cell }}{% endif %}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+          {% endfor %}
+        </table>
+      </div>
+    </section>
+  </div>
+
+  {# ── Risk weights ── #}
+  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-weights" aria-labelledby="tab-weights" tabindex="0" hidden>
+    <div class="ds-alert v-info" role="note"><i class="ti ti-info-circle" aria-hidden="true"></i><div class="ds-alert-body">New weights apply from the next nightly scoring. Alerts already raised keep the breakdown they were raised with.</div></div>
+    <div class="fms-grid is-halves">
+      {% for model in weight_models %}
+      <section class="ds-card ds-panel" aria-labelledby="w-{{ model.key }}-title">
+        <div class="ds-panel-head">
+          <div class="fms-min0"><h2 class="ds-panel-title" id="w-{{ model.key }}-title">{{ model.title }}</h2><p class="ds-panel-sub">{{ model.sub }}</p></div>
+        </div>
+        <form class="ds-panel-body ds-stack" onsubmit="return false" novalidate data-weights>
+          <fieldset class="fms-weights">
+            <legend class="ds-sr-only">{{ model.title }}, weight of each factor in percent</legend>
+            {% for f in model.weights.factors %}
+            <div class="fms-weight">
+              <label class="fms-min0" for="w-{{ model.key }}-{{ forloop.counter }}"><span class="fms-schedule-title">{{ f.label }}</span><span class="fms-caption">{{ f.source }}</span></label>
+              <input class="ds-control" id="w-{{ model.key }}-{{ forloop.counter }}" type="number" min="0" max="100" step="5" value="{{ f.weight }}" inputmode="numeric" data-weight data-default="{{ f.weight }}" aria-describedby="w-{{ model.key }}-total">
+            </div>
+            {% endfor %}
+          </fieldset>
+          <div class="fms-weight-total" id="w-{{ model.key }}-total" data-weight-total aria-live="polite"><span>Total</span><span><strong data-weight-sum>{{ model.weights.total }}%</strong> <span data-weight-note>of 100%</span></span></div>
+          <div class="fms-row fms-end">
+            <button type="button" class="ds-btn ds-btn-ghost" data-weight-reset>Reset to defaults</button>
+            <button type="submit" class="ds-btn ds-btn-primary" data-weight-save data-say="{{ model.title }} weights saved. They apply from tonight's scoring." data-say-repeat><i class="ti ti-device-floppy" aria-hidden="true"></i>Save weights</button>
+          </div>
+        </form>
+      </section>
+      {% endfor %}
+    </div>
+
+    <section class="ds-card ds-panel" aria-labelledby="levels-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="levels-title">Levels and privacy limits</h2><p class="ds-panel-sub">Shared by burnout and retention scores</p></div>
+      </div>
+      <form class="ds-panel-body ds-stack" onsubmit="return false" novalidate>
+        <div class="fms-form">
+          {% for l in levels %}
+          <div class="ds-field">
+            <label class="ds-label" for="level-{{ l.label|lower }}">{{ l.label }} from</label>
+            <input class="ds-control" id="level-{{ l.label|lower }}" type="number" min="0" max="100" value="{{ l.floor }}" inputmode="numeric">
+            <p class="ds-hint">Score out of 100</p>
+          </div>
+          {% endfor %}
+          <div class="ds-field">
+            <label class="ds-label" for="min-group">Smallest group shown</label>
+            <input class="ds-control" id="min-group" type="number" min="5" value="{{ min_group }}" inputmode="numeric">
+            <p class="ds-hint">People. Smaller groups are merged into "Other"; it can't go below 5</p>
+          </div>
+          <div class="ds-field">
+            <label class="ds-label" for="consent-days">Wellness consent lasts</label>
+            <input class="ds-control" id="consent-days" type="number" min="1" value="{{ consent_days }}" inputmode="numeric">
+            <p class="ds-hint">Days. The employee can revoke it at any time</p>
+          </div>
+        </div>
+        <div class="fms-row fms-end"><button type="submit" class="ds-btn ds-btn-primary" data-say="Levels and limits saved." data-say-repeat><i class="ti ti-device-floppy" aria-hidden="true"></i>Save</button></div>
+      </form>
+    </section>
+  </div>
+
+  {# ── Leave types ── #}
+  <div class="fms-tab-panel" role="tabpanel" id="panel-leave" aria-labelledby="tab-leave" tabindex="0" hidden>
+    <section class="ds-card ds-panel p-none" aria-labelledby="leave-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="leave-title">Leave types and credits</h2><p class="ds-panel-sub">Credits per school year · employees see these when they file</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="New leave type drafted. Fill in its credits and proof, then publish it." data-say-repeat><i class="ti ti-plus" aria-hidden="true"></i>Add a leave type</button>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Leave type</th><th scope="col" class="a-right">Days a year</th><th scope="col">Carries over</th><th scope="col">Proof needed</th><th scope="col">Approved by</th><th scope="col" class="a-right"><span class="ds-sr-only">Actions</span></th></tr></thead>
+          <tbody>
+            {% for t in leave_types %}
+            <tr>
+              <td><div class="ds-cell-strong">{{ t.name }}</div><div class="ds-cell-sub">{{ t.code }}</div></td>
+              <td class="a-right">{{ t.days }}</td><td>{{ t.carry }}</td><td>{{ t.proof }}</td><td>{{ t.approval }}</td>
+              <td class="a-right"><button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" aria-label="Edit {{ t.name }}" data-say="Editing {{ t.name }}. Changes apply to leave filed from tomorrow." data-say-repeat><i class="ti ti-pencil" aria-hidden="true"></i>Edit</button></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  {# ── Policy rules ── #}
+  <div class="fms-tab-panel" role="tabpanel" id="panel-rules" aria-labelledby="tab-rules" tabindex="0" hidden>
+    <section class="ds-card ds-panel p-none" aria-labelledby="rules-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="rules-title">Policy alerts</h2><p class="ds-panel-sub">When the system notifies someone, and who</p></div>
+        <button type="button" class="ds-btn ds-btn-primary ds-btn-sm" data-say="Policy rules saved." data-say-repeat><i class="ti ti-device-floppy" aria-hidden="true"></i>Save rules</button>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">On</th><th scope="col">Rule</th><th scope="col">Threshold</th><th scope="col">Notifies</th></tr></thead>
+          <tbody>
+            {% for r in rules %}
+            <tr>
+              <td><label class="fms-check"><input type="checkbox" checked aria-label="{{ r.rule }} is on"></label></td>
+              <td class="ds-cell-strong">{{ r.rule }}</td>
+              <td>{% if r.threshold %}<span class="fms-row"><input class="ds-control fms-num-input" id="{{ r.id }}" type="number" min="1" value="{{ r.threshold }}" inputmode="numeric" aria-label="{{ r.rule }}, threshold in {{ r.unit }}"><span class="fms-caption">{{ r.unit }}</span></span>{% else %}<span class="fms-caption">Every time</span>{% endif %}</td>
+              <td>{{ r.notifies }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  {# ── Career tracks ── #}
+  <div class="fms-tab-panel ds-stack" role="tabpanel" id="panel-tracks" aria-labelledby="tab-tracks" tabindex="0" hidden>
+    <div class="fms-grid is-thirds">
+      {% for t in tracks %}
+      <section class="ds-card ds-panel" aria-labelledby="track-{{ forloop.counter }}">
+        <div class="ds-panel-head">
+          <div class="fms-min0"><h2 class="ds-panel-title" id="track-{{ forloop.counter }}">{{ t.name }}</h2><p class="ds-panel-sub">{{ t.scope }} · {{ t.headcount }} people</p></div>
+          <button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" aria-label="Edit {{ t.name }}" data-say="Editing {{ t.name }}: ranks, expected years and next-rank requirements." data-say-repeat><i class="ti ti-pencil" aria-hidden="true"></i>Edit</button>
+        </div>
+        <div class="ds-panel-body">
+          <ol class="fms-list">
+            {% for r in t.ranks %}<li><span>{{ r.title }}</span><span class="fms-caption">{{ r.expected }}</span></li>{% endfor %}
+          </ol>
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+    <section class="ds-card ds-panel p-none" aria-labelledby="flags-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="flags-title">Career flags</h2><p class="ds-panel-sub">How each flag on Career progress is raised</p></div>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Flag</th><th scope="col">Rule</th></tr></thead>
+          <tbody>{% for flag, rule in flags %}<tr><td class="ds-cell-strong">{{ flag }}</td><td>{{ rule }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  {# ── FAQs ── #}
+  <div class="fms-tab-panel" role="tabpanel" id="panel-faqs" aria-labelledby="tab-faqs" tabindex="0" hidden>
+    <section class="ds-card ds-panel p-none" aria-labelledby="faq-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="faq-title">HR assistant answers</h2><p class="ds-panel-sub">HR officers write the answers; you set categories and retire old ones</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="New FAQ drafted. An HR officer writes the answer before it goes live." data-say-repeat><i class="ti ti-plus" aria-hidden="true"></i>Add a question</button>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">Answer</th><th scope="col">Category</th><th scope="col" class="a-right">Asked this month</th><th scope="col" class="a-right">Helpful</th><th scope="col">Updated</th><th scope="col" class="a-right"><span class="ds-sr-only">Actions</span></th></tr></thead>
+          <tbody>
+            {% for f in faqs %}
+            <tr>
+              <td><div class="ds-cell-strong">{{ f.title }}</div>{% if f.flag %}<div class="ds-cell-sub"><span class="ds-status v-warning"><span class="ds-dot d-warning"></span>{{ f.flag }}</span></div>{% endif %}</td>
+              <td><span class="ds-badge s-sm">{{ f.category }}</span></td>
+              <td class="a-right">{{ f.asked }}</td>
+              <td class="a-right">{{ f.helpful }}%</td>
+              <td>{{ f.updated }}</td>
+              <td class="a-right"><button type="button" class="ds-btn ds-btn-ghost ds-btn-sm" aria-label="Edit {{ f.title }}" data-say="Opened {{ f.title }} for editing." data-say-repeat><i class="ti ti-pencil" aria-hidden="true"></i>Edit</button></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  {# ── Audit log ── #}
+  <div class="fms-tab-panel" role="tabpanel" id="panel-audit" aria-labelledby="tab-audit" tabindex="0" hidden>
+    <section class="ds-card ds-panel p-none" aria-labelledby="audit-title">
+      <div class="ds-panel-head">
+        <div class="fms-min0"><h2 class="ds-panel-title" id="audit-title">Audit log</h2><p class="ds-panel-sub">Views of pay, government IDs, 201 files and consented wellness data, plus every settings change</p></div>
+        <button type="button" class="ds-btn ds-btn-secondary ds-btn-sm" data-say="Audit log exported as a CSV." data-say-repeat><i class="ti ti-table-export" aria-hidden="true"></i>Export</button>
+      </div>
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th><th scope="col">Whose record</th></tr></thead>
+          <tbody>
+            {% for e in audit %}
+            <tr>
+              <td>{{ e.when }}</td>
+              <td><div class="ds-cell-strong">{{ e.who }}</div><div class="ds-cell-sub">{{ e.role }}</div></td>
+              <td><span class="fms-row"><i class="ti ti-{{ e.icon }}" aria-hidden="true"></i>{{ e.action }}</span></td>
+              <td>{% if e.subject %}{{ e.subject }}{% else %}<span class="fms-caption">—</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

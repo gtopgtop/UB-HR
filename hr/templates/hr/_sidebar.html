@@ -1,7 +1,7 @@
-{% load static %}
+{% load fms %}
 <aside class="ds-sidebar" id="sidebar">
   <div class="ds-sidebar-brand">
-    <img class="ds-brand-seal" src="{% static 'hr/img/ub-seal-on-maroon.png' %}" alt="University of Batangas">
+    <img class="ds-brand-seal" src="{% asset 'hr/img/ub-seal-on-maroon.png' %}" alt="University of Batangas">
     <div class="fms-min0 fms-rail-hide">
       <div class="ds-brand-name">Faculty Management</div>
       <div class="ds-brand-sub">HR portal</div>
@@ -17,7 +17,7 @@
       <div class="ds-nav-label">{{ group.section.label }}</div>
       {% endif %}
       <div class="ds-nav-group" id="nav-{{ forloop.counter }}"{% if not group.open %} hidden{% endif %}>
-        {% for item in group.section.pages %}
+        {% for item in group.pages %}
         <a class="ds-nav-link" href="{{ item.url }}"{% if item == page %} aria-current="page"{% endif %}><i class="ti ti-{{ item.icon }}" aria-hidden="true"></i><span>{{ item.label }}</span></a>
         {% endfor %}
       </div>
@@ -30,7 +30,17 @@
   </div>
 
   <div class="ds-sidebar-foot">
+    {# "View as" (plan §9.1): no login in the prototype, so the role is picked here and kept in a cookie. #}
+    <form class="fms-view-as fms-rail-hide" action="{% url 'hr:view_as' %}" method="get" data-view-as>
+      <label class="fms-view-as-label" for="view-as">View as</label>
+      <select class="ds-control" id="view-as" name="role">
+        {% for r in roles %}<option value="{{ r.key }}"{% if r == role %} selected{% endif %}>{{ r.label }}</option>{% endfor %}
+      </select>
+      <noscript><button type="submit" class="ds-btn ds-btn-secondary ds-btn-sm">Switch</button></noscript>
+    </form>
+    {% if role.key == "hr" %}
     <a class="ds-nav-link" href="{% url 'hr:account' %}"{% if page.name == 'account' %} aria-current="page"{% endif %}><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i><span>My settings</span></a>
+    {% endif %}
     <div class="ds-user-card">
       <div class="ds-avatar" aria-hidden="true">{{ current_user.initials }}</div>
       <div class="fms-grow fms-rail-hide">
